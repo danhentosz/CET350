@@ -21,65 +21,61 @@ class Program2 {
 		BufferedReader infile;
 		PrintWriter outfile;
 		File in;
-		File out;
 		IOFile f1 = new IOFile();
+		String temp = new String("");
 		if (f1.getnames(args, ionames)) {
+			// They entered a valid input and output file path
 			in = new File(ionames[0]);
-			out = new File(ionames[1]);
-			ionames[2]=null;
+			ionames[2] = null;
 			if (f1.choice(ionames)) {
+				// They selected 1 or 2(backup the file or overwrite the file)
 				try {
 					infile = new BufferedReader(new FileReader(in));
 					while ((word = infile.readLine()) != null) {
-						inline = new StringTokenizer(word, "~`!@#$%^&*()_=+><.,\n\r\t:;\" ");
+						// read every line
+						inline = new StringTokenizer(word, "~`!@#$%^&*()_+=[{]}\\|\n\t\r,<>./?;:\" ");
+						// each line beacomes several tokens
 						while (inline.hasMoreTokens()) {
 							word = inline.nextToken().toString().toLowerCase();
-							if (!(word.length() < 2)) {
-								while (word.charAt(1) == '-') {
-									word = word.substring(1);
+							// each token is made a string, so we can use our String methods
+							temp = "0";
+							if (f1.good(word)) {
+								// Checks if the string is just - or '("----" or "''''''")
+								if (word.length() > 1) {
+									// So we dont get a index out of bounds exception when trying see see slot 2
+									while (word.charAt(1) == '-') {
+										word = word.substring(1);
+									}
 								}
 								try {
 									sum = sum + Integer.parseInt(word);
 								} catch (NumberFormatException e) {
+									// We know its either a word or numbers followed by a word(123cat)
 									char c = word.charAt(0);
-									String temp = new String("0");
 									while (word.charAt(0) == '-' | word.charAt(0) == '\'' | Character.isDigit(c)) {
 										if (Character.isDigit(c)) {
+											// If its number followed by a word(123cat)
 											temp = temp + Character.toString(c);
 										}
 										word = word.substring(1);
 										c = word.charAt(0);
 									}
-									sum = sum + Integer.valueOf(temp);
-									if (words[0] == null) {
+									sum = sum + Integer.parseInt(temp);
+									// Creating our new Word object(if its needed)
+									if (count == 0) {
 										words[0] = new Word(word);
 										count++;
 									} else {
+										// i will be -1 if the word is not already in the array
 										i = words[0].findWord(words, word, count);
 										if (i == -1) {
 											words[count] = new Word(word);
 											count++;
 										} else {
 											words[i].addOne();
+											;
 										}
 									}
-								}
-							} else {
-								char c = word.charAt(0);
-								if (!Character.isDigit(c) && c != '-' && c != '\'') {
-									if (words[0] == null) {
-										words[0] = new Word(word);
-										count++;
-									} else {
-										i = words[0].findWord(words, word, count);
-										if (i == -1) {
-											words[count] = new Word(word);
-										} else {
-											words[i].addOne();
-										}
-									}
-								} else {
-									sum = sum + Integer.parseInt(word);
 								}
 							}
 						}
@@ -88,33 +84,23 @@ class Program2 {
 					e.printStackTrace();
 				}
 				try {
-					if (ionames[2] != null) {
+					// Writing to the file
+					// if ionames[2] is null then the user wants to overwrite the exiting output
+					// file
+					if (ionames[2] != null)
 						outfile = new PrintWriter(new File(ionames[2]));
-						for (int j = 0; j < count; j++) {
-							outfile.write("WORD:    ");
-							outfile.write(words[j].name);
-							outfile.write("\nCOUNT:    ");
-							outfile.print(words[j].count);
-							outfile.write("\n");
-						}
-						outfile.write("TOTAL UNIQUE WORDS:    ");
-						outfile.print(count);
-						outfile.write("\nSUM OF INTEGERS:    ");
-						outfile.print(sum);
-					} else {
+					else
 						outfile = new PrintWriter(new File(ionames[1]));
-						for (int j = 0; j < count; j++) {
-							outfile.write("WORD:    ");
-							outfile.write(words[j].name);
-							outfile.write("\nCOUNT    :");
-							outfile.print(words[j].count);
-							outfile.write("\n");
-						}
-						outfile.write("TOTAL UNIQUE WORDS:    ");
-						outfile.print(count);
-						outfile.write("\nSUM OF INTEGERS:    ");
-						outfile.print(sum);
+					for (int j = 0; j < count; j++) {
+						outfile.write("WORD:    " + words[j].getName());
+						outfile.write("\nCOUNT:    ");
+						outfile.print(words[j].getCount());
+						outfile.write("\n");
 					}
+					outfile.write("TOTAL UNIQUE WORDS:    ");
+					outfile.print(count);
+					outfile.write("\nSUM OF INTEGERS:    ");
+					outfile.print(sum);
 					outfile.close();
 				} catch (FileNotFoundException e) {
 					// TODO Auto-generated catch block
@@ -126,22 +112,32 @@ class Program2 {
 }
 
 class Word {
-	String name;
-	int count;
+	private String name;
+	private int count;
 
+	// Contructor
 	Word(String w) {
 		name = w;
 		count = 1;
 	}
 
+	// To display the count
 	int getCount() {
 		return count;
 	}
 
+	// To increment the count
 	void addOne() {
 		count++;
 	}
 
+	// To display the unique word
+	String getName() {
+		return name;
+	}
+
+	// To see if the word is already in the array
+	// Returns -1 if not, otherwise returns the index of which the array exists
 	int findWord(Word[] list, String w, int n) {
 		for (int i = 0; i < n; i++) {
 			if (list[i].name.equals(w)) {
@@ -159,6 +155,7 @@ class IOFile {
 		File in = new File("");
 		File out = new File("");
 		String temp = new String(" ");
+		// Seeing how many command line arguments they entered, if any at all
 		switch (args.length) {
 		case 1:
 			in = new File(args[0]);
@@ -173,20 +170,24 @@ class IOFile {
 		default:
 			break;
 		}
+		// While the input file path is incorrect or the user didnt enter anything
 		while (!in.exists() && !temp.isEmpty()) {
 			System.out.println("Enter a valid input file path:");
 			try {
 				temp = get.readLine();
+				// update our array
 				ionames[0] = temp;
 				in = new File(temp);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
+		// While the output file path is incorrect or the user didnt enter anything
 		while (!out.exists() && !temp.isEmpty()) {
 			System.out.println("Enter a valid output file path:");
 			try {
 				temp = get.readLine();
+				// update our array
 				ionames[1] = temp;
 				out = new File(temp);
 			} catch (IOException e) {
@@ -199,69 +200,57 @@ class IOFile {
 		return false;
 	}
 
-	void fileBackup(String name, String ext) {
-		name.substring(name.lastIndexOf('/'), name.lastIndexOf('.'));
-	}
-
-	String fileName(String name) {
-		return null;
-	}
-
-	BufferedReader openin(String name) {
-		BufferedReader in;
-		try {
-			in = new BufferedReader(new FileReader(name));
-			return in;
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	int isInt(String w, int sum) {
-		while (w.charAt(1) == '-' | w.charAt(1) == '\'') {
-			w = w.substring(1);
-		}
-		try {
-			sum = sum + Integer.parseInt(w);
-			return sum;
-		} catch (NumberFormatException e) {
-			return -1;
-		}
-	}
-
+	// Returns true if they enter 1 and a valid new output file path
+	// Returns true if they enter 2(To overwrite the output file
+	// Returns false otherwise
 	boolean choice(String ionames[]) {
 		File f = new File("");
-		String choice=" ";
-		String choice2=" ";
+		String choice = " ";
+		String choice2 = " ";
 		BufferedReader get = new BufferedReader(new InputStreamReader(System.in));
-		while(!choice.isEmpty()) {
-		System.out.println("PRESS 1: To backup the exitsing output file");
-		System.out.println("PRESS 2: To overwrite the exitsing output file");
-		System.out.println("PRESS 3: To exit"); 
-		try {
-			choice=get.readLine();
-			if(choice.equals("1")) {
-				while(!choice2.isEmpty()&&!f.exists()) {
-					System.out.println("Enter a new valid output file name:");
-					choice2=get.readLine();
-					if(choice2.isEmpty())
-						return false;
-					f=new File(choice2);
-				}
-				if(f.exists()) {
-					ionames[2]=choice2;
+		while (!choice.isEmpty()) {
+			// prompt the user
+			System.out.println("PRESS 1: To backup the exitsing output file");
+			System.out.println("PRESS 2: To overwrite the exitsing output file");
+			System.out.println("PRESS 3: To exit");
+			try {
+				choice = get.readLine();
+				if (choice.equals("1")) {
+					while (!choice2.isEmpty() && !f.exists()) {
+						System.out.println("Enter a new valid output file name:");
+						choice2 = get.readLine();
+						if (choice2.isEmpty())
+							return false;
+						f = new File(choice2);
+					}
+					if (f.exists()) {
+						// putting data here, we will know their choice later in the program by
+						// comparing ionames[2] to null
+						ionames[2] = choice2;
+						return true;
+					}
+				} else if (choice.equals("2")) {
 					return true;
+				} else if (choice.equals("3")) {
+					return false;
 				}
-			} else if(choice.equals("2")) {
-				return true;
-			} else if(choice.equals("3")) {
-				return false;
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-		} catch(IOException e) {
-			e.printStackTrace();
 		}
+		return false;
+	}
+
+	// Check if the string is just - or '
+	// We need this because we would get an ArrayIndexOutfBoundsException if we
+	// didnt have it
+	boolean good(String s) {
+		char c;
+		for (int i = 0; i < s.length(); i++) {
+			c = s.charAt(i);
+			if (Character.isLetter(c) | Character.isDigit(c)) {
+				return true;
+			}
 		}
 		return false;
 	}
