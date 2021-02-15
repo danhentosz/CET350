@@ -7,120 +7,269 @@
  * GROUP 7
  */
 import java.io.*;
+import java.util.StringTokenizer;
 
-class Program2 {
+class G7P2 {
 	public static void main(String[] args) {
+		int i = 0;
+		int count = 0;
+		int sum = 0;
+		String word = null;
+		String[] ioFilePaths = new String[2];
+		Word words[] = new Word[100];
+		StringTokenizer inline;
+		BufferedReader infile;
+		PrintWriter outfile;
+		File in;
 		IOFile f1 = new IOFile();
-		if (f1.getNames(args)) {
-			if (f1.choices()) {
-				System.out.println("yay. we have valid shitttt");
-				if (f1.choice1 == 1) {
-					System.out.println("1");
-				} else {
-					System.out.println("2");
+		String temp = new String("");
+		if (f1.getnames(args, ioFilePaths)) {
+			// They entered a valid input and output file path
+			in = new File(ioFilePaths[0]);
+			
+			try {
+				infile = new BufferedReader(new FileReader(in));
+				while ((word = infile.readLine()) != null) {
+					// read every line
+					inline = new StringTokenizer(word, "~`!@#$%^&*()_+=[{]}\\|\n\t\r,<>./?;:\" ");
+					// each line becomes several tokens
+					while (inline.hasMoreTokens()) {
+						word = inline.nextToken().toString().toLowerCase();
+						// each token is made a string, so we can use our String methods
+						temp = "0";
+						if (f1.good(word)) {
+							// Checks if the string is just - or '("----" or "''''''")
+							if (word.length() > 1) {
+								// So we don't get an index out of bounds exception when trying see see slot 2
+								while (word.charAt(1) == '-') {
+									word = word.substring(1);
+								}
+							}
+							try {
+								sum = sum + Integer.parseInt(word);
+							} catch (NumberFormatException e) {
+								// We know its either a word or numbers followed by a word(123cat)
+								char c = word.charAt(0);
+								while (word.charAt(0) == '-' | word.charAt(0) == '\'' | Character.isDigit(c)) {
+									if (Character.isDigit(c)) {
+										// If its number followed by a word(123cat)
+										temp = temp + Character.toString(c);
+									}
+									word = word.substring(1);
+									c = word.charAt(0);
+								}
+								sum = sum + Integer.parseInt(temp);
+								// Creating our new Word object(if its needed)
+								if (count == 0) {
+									words[0] = new Word(word);
+									count++;
+								} else {
+									// i will be -1 if the word is not already in the array
+									i = words[0].findWord(words, word, count);
+									if (i == -1) {
+										words[count] = new Word(word);
+										count++;
+									} else {
+										words[i].addOne();
+										;
+									}
+								}
+							}
+						}
+					}
 				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			try {
+				// Writing to the file
+				outfile = new PrintWriter(new File(ioFilePaths[1]));
+				for (int j = 0; j < count; j++) {
+					outfile.write("WORD:    " + words[j].getName());
+					outfile.write("\nCOUNT:    ");
+					outfile.print(words[j].getCount());
+					outfile.write("\n");
+				}
+				outfile.write("TOTAL UNIQUE WORDS:    ");
+				outfile.print(count);
+				outfile.write("\nSUM OF INTEGERS:    ");
+				outfile.print(sum);
+				outfile.close();
+				System.out.println("\nSuccessfully wrote data to: " + ioFilePaths[1]);
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 	}
 }
 
-class IOFile {
-	BufferedReader get = new BufferedReader(new InputStreamReader(System.in));
-	File f1in = new File("");
-	File f1out = new File("");
-	File f2out = new File("");
-	int choice1;
-	String f1outs;
-	String f1outs2;
+class Word {
+	private String name;
+	private int count;
 
-	boolean getNames(String args[]) {
-		File f1in = new File("");
-		File f1out = new File("");
-		String temp = " ";
-		if (args.length == 2) {
-			f1in = new File(args[0]);
-			f1out = new File(args[1]);
-			f1outs2=args[1];
-		} else if (args.length == 1) {
-			f1in = new File(args[0]);
-			System.out.println("Enter a valid output file path:");
-			try {
-				temp = get.readLine();
-				f1out = new File(temp);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		while (!f1in.exists() && !temp.isEmpty()) {
-			System.out.println("Enter a vlid input file location:");
-			try {
-				temp = get.readLine();
-				f1in = new File(temp);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		while (!f1out.exists() && !temp.isEmpty()) {
-			System.out.println("Enter a valid output file location:");
-			try {
-				temp = get.readLine();
-				f1out = new File(temp);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		if (f1in.exists() && f1out.exists()) {
-			f1outs=new String(temp);
-			return true;
-		}
-		return false;
+	// Constructor
+	Word(String w) {
+		name = w;
+		count = 1;
 	}
 
-	boolean choices() {
-		String choice = new String(" ");
-		while (true) {
-			System.out
-					.println("PRESS 1: To enter a new output file name, backing up the existing output file first.\r\n"
-							+ "PRESS 2: To overwrite the existing output file\r\n"
-							+ "PRESS 3: To quit the program without opening any files.");
+	// To display the count
+	int getCount() {
+		return count;
+	}
+
+	// To increment the count
+	void addOne() {
+		count++;
+	}
+
+	// To display the unique word
+	String getName() {
+		return name;
+	}
+
+	// To see if the word is already in the array
+	// Returns -1 if not, otherwise returns the index of which the array exists
+	int findWord(Word[] list, String w, int n) {
+		for (int i = 0; i < n; i++) {
+			if (list[i].name.equals(w)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+}
+
+class IOFile {
+	// Returns false if the user chose not to enter file names
+	boolean getnames(String args[], String[] ioFilePaths) {
+		BufferedReader get = new BufferedReader(new InputStreamReader(System.in));
+		File in = new File("");
+		File out = new File("");
+		boolean quitting = false;
+		String temp = new String(" ");
+		// Seeing how many command line arguments they entered, if any at all
+		switch (args.length) {
+		case 1:
+			in = new File(args[0]);
+			ioFilePaths[0] = args[0];
+			break;
+		case 2:
+			in = new File(args[0]);
+			out = new File(args[1]);
+			ioFilePaths[0] = args[0];
+			ioFilePaths[1] = args[1];
+			break;
+		default:
+			break;
+		}
+		// While the input file path is incorrect
+		while (!in.exists() && !quitting) {
+			System.out.println("\nEnter a valid input file path:");
 			try {
-				choice = get.readLine();
+				System.out.print("> ");
+				temp = get.readLine();
+				// update our array
+				ioFilePaths[0] = new String(temp);
+				in = new File(temp);
+				if (!in.exists())
+				{
+					System.out.println("\nThe entered file path does not exist."
+							+ "\nEnter 1 to try again"
+							+ "\nEnter anything else to exit");
+					System.out.print("> ");
+					temp = get.readLine();
+					if (!temp.equals("1"))
+					{
+						quitting = true;
+					}
+				}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			if (choice.isEmpty() | choice.equals("3"))
-				return false;
-			if (choice.equals("1")) {
-				String temp = new String(" ");
-				while (!f2out.exists() && !temp.isEmpty()) {
-					System.out.println("Enter a valid output file path:");
-					try {
-						temp = get.readLine();
-					} catch (IOException e) {
-						e.printStackTrace();
+		}
+		// While the output file path is incorrect
+		while (!out.exists() && !quitting) {
+			System.out.println("\nEnter an output file path:");
+			try {
+				System.out.print("> ");
+				temp = get.readLine();
+				// update our array
+				ioFilePaths[1] = new String(temp);
+				out = new File(temp);
+				// Checks if a file with the output file name already exists
+				if (!out.createNewFile())
+				{
+					System.out.println("\nAn output file with that name already exists."
+							+ "\nEnter 1 to overwrite it"
+							+ "\nEnter 2 to back up the original"
+							+ "\nEnter anything else to exit");
+					System.out.print("> ");
+					temp = get.readLine();
+					if (temp.equals("1"))
+					{
+						out.delete();
+						out.createNewFile();
 					}
-					if(temp.isEmpty())
-						return false;
-					f2out = new File(temp);
-					if (f2out.exists()) {
-						if(temp.equals(f1outs2)||temp.equals(f1outs))
-						{
-							System.out.println("File is already open.");
-							f2out=new File("");
-						} else {
-						choice1=Integer.parseInt(choice);
-						return true;
-						}
+					else if (temp.equals("2"))
+					{
+						backupFile(out);
+						out.createNewFile();
+					}
+					else 
+					{
+						quitting = true;
 					}
 				}
-				if (choice.equals("2")) {
-					choice1 = Integer.parseInt(choice);
-					return true;
-				}
-				System.out.println("Invalid input:");
-			} else if(choice.equals("2")) {
+				
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		return !quitting;
+	}
+	
+	// Changes the name of "theFile" to it's current name with "BACKUP" appended to the end
+	// Keeps the directory and extension of "theFile" intact
+	void backupFile(File theFile)
+	{
+		File newFile = new File(getFileDirectory(theFile).concat(getFileNameNoExtension(theFile)).concat("BACKUP").concat(getFileExtension(theFile)));
+		// Checks if a file matching this backup name already exists
+		if (newFile.exists())
+			newFile.delete();
+		theFile.renameTo(newFile);
+	}
+	
+	// Returns a String containing the extension of "theFile"
+	String getFileExtension(File theFile)
+	{
+		return theFile.getName().substring(theFile.getName().indexOf('.'), theFile.getName().length());
+	}
+	
+	// Returns a String containing the name without the extension of "theFile"
+	String getFileNameNoExtension(File theFile)
+	{
+		return theFile.getName().substring(0, theFile.getName().indexOf('.'));
+	}
+	
+	// Returns a String containing the directory of "theFile"
+	String getFileDirectory(File theFile)
+	{
+		return theFile.getPath().substring(0, theFile.getPath().length() - theFile.getName().length());
+	}
+
+	// Check if the string is just - or '
+	// We need this because we would get an ArrayIndexOutfBoundsException if we
+	// didn't have it
+	boolean good(String s) {
+		char c;
+		for (int i = 0; i < s.length(); i++) {
+			c = s.charAt(i);
+			if (Character.isLetter(c) | Character.isDigit(c)) {
 				return true;
 			}
 		}
+		return false;
 	}
 }
