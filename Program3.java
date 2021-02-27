@@ -154,7 +154,6 @@ class Program3 extends Frame implements WindowListener, ActionListener {
 		File file = new File(curDir);
 		
 		if (list != null) {
-			this.remove(list); // Removes from grid bag layout too
 			list.removeAll();
 		}
 		
@@ -167,7 +166,6 @@ class Program3 extends Frame implements WindowListener, ActionListener {
 			else
 				list.add(file.listFiles()[i].getName());
 		}
-		this.add(list);
 		
 	}
 
