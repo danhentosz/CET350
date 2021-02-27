@@ -19,6 +19,7 @@ import java.io.IOException;
 
 class Program3 extends Frame implements WindowListener, ActionListener {
 	private static final long serialVersionUID = 1L;
+	String curDir = null;
 	Label l1 = new Label("Source:");
 	Label l2 = new Label();
 	Label l3 = new Label("Select Target Directory:");
@@ -140,12 +141,61 @@ class Program3 extends Frame implements WindowListener, ActionListener {
 		this.setTitle("Current Directory Goes Here");
 		this.setVisible(true);
 		this.addWindowListener(this);
+		
+		setDir(s);
+		list.addActionListener(this);
+	}
+	
+		// Updates the title of the program, displays the files in the directory as a list in the window
+	public void setDir(String dir) {
+		
+		curDir = new String(dir);
+		this.setTitle(curDir);
+		File file = new File(curDir);
+		
+		if (list != null) {
+			this.remove(list); // Removes from grid bag layout too
+			list.removeAll();
+		}
+		
+		if (file.getParent() != null)
+			list.add("...");
+		for (int i = 0; i < file.listFiles().length; i++)
+		{
+			if (file.listFiles()[i].isDirectory())
+			list.add(file.listFiles()[i].getName() + " +");
+			else
+				list.add(file.listFiles()[i].getName());
+		}
+		this.add(list);
+		
 	}
 
 	@Override
-	public void actionPerformed(ActionEvent arg0) {
-		// TODO Auto-generated method stub
-
+	public void actionPerformed(ActionEvent e) {
+		Object source = e.getSource();
+		
+		if (source == list) {
+			String selection = list.getSelectedItem();
+			// Checks if it is a directory and if so removes the plus at the end
+			if (selection.contains(" +"))
+				selection = selection.substring(0, selection.length() - 2);
+			File fileSelect = new File(curDir + "\\" + selection);
+			if (fileSelect.exists()) {
+				// Checks if parent was selected
+				if (selection.equals("...")) {
+					selection = new File(curDir).getParent();
+					setDir(selection);
+				}
+				else if (fileSelect.isDirectory()) {
+					setDir(fileSelect.getPath());
+				}
+				else {
+					// Do stuff with target/source
+				}
+			}
+		}
+		
 	}
 
 	@Override
