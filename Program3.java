@@ -15,7 +15,6 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -165,10 +164,14 @@ class Program3 extends Frame implements WindowListener, ActionListener {
 	void display(String s) {
 		list.removeAll();
 		// Making the title the current path, as long as its not the root
-		if (curDir.toPath().getNameCount() > 0) {
+
+		if (curDir.toPath().getNameCount() >= 2)
+			list.add("...");
+		else
+			l5.setText("You're at the root");
+		if (curDir.toPath().getNameCount() >= 1) {
 			this.setTitle(s);
 		}
-		list.add("...");
 		String names[] = curDir.list();
 		if (names != null) {
 			for (int i = 0; i < names.length; i++) {
@@ -195,18 +198,24 @@ class Program3 extends Frame implements WindowListener, ActionListener {
 	public void actionPerformed(ActionEvent ae) {
 		Object source = ae.getSource();
 		if (source == b1) {
+			txt.setEnabled(true);
 			target = true;
 			targetname = curDir.getAbsolutePath();
 			l3.setText(curDir.getAbsolutePath());
 		} else if (source == b2) {
 			copy();
 		} else if (source == list) {
+			l5.setText("");
 			String name = list.getSelectedItem();
 			if (name.equals("...")) {
-				int pos = 0;
-				pos = curDir.getAbsolutePath().lastIndexOf("\\");
-				curDir = new File(curDir.getAbsolutePath().substring(0, pos));
-				display(curDir.getAbsolutePath());
+				if (curDir.toPath().getNameCount() == 1)
+					l5.setText("You're at the root");
+				else {
+					int pos = 0;
+					pos = curDir.getAbsolutePath().lastIndexOf("\\");
+					curDir = new File(curDir.getAbsolutePath().substring(0, pos));
+					display(curDir.getAbsolutePath());
+				}
 			} else if (name.endsWith("+")) {
 				name = name.substring(0, name.length() - 1);
 				File temp = new File(curDir.getAbsolutePath() + "\\" + name);
@@ -223,30 +232,70 @@ class Program3 extends Frame implements WindowListener, ActionListener {
 			} else {
 				l2.setText(curDir.getAbsolutePath() + "\\" + name);
 				b1.setEnabled(true);
-				txt.setEnabled(true);
-				txt.setText(name);
+				if (txt.isEnabled())
+					txt.setText(name);
 			}
 		} else if (source == txt) {
+			copy();
+			l2.setText("");
+			l3.setText("                                                                                  ");
+			txt.setText("");
+			b1.setEnabled(false);
 		}
 	}
 
 	void copy() {
 		l5.setText("");
-		try {
-			BufferedReader get=new BufferedReader(new FileReader(l2.getText()));
-			File ftemp=new File(l3.getText()+"\\"+txt.getText());
-			if(!ftemp.exists()) {
-				l5.setText("Target file not specified.");
+		boolean dup = false;
+		boolean good = false;
+		if (!l2.getText().isEmpty() && !l3.getText().isEmpty() && !l3.getText().contains("  ")
+				&& !txt.getText().isEmpty()) {
+			File f1 = new File(l2.getText());
+			if (!f1.isFile())
+				l5.setText("Invalid source file");
+			File f2 = new File(l3.getText());
+			if (!f2.isDirectory())
+				l5.setText("Invalid target directory.");
+			if (f1.isFile() && f2.isDirectory()) {
+				File f3 = new File(l3.getText());
+				String names[] = f3.list();
+				for (int i = 0; i < names.length; i++) {
+					if (names[i].equals(txt.getText())) {
+						dup = true;
+						l5.setText("Output file exists. It will be overwritten");
+					}
+				}
+				try {
+					BufferedReader get = new BufferedReader(new FileReader(l2.getText()));
+					PrintWriter out = new PrintWriter(new FileWriter(l3.getText() + "\\" + txt.getText()));
+					String line = "";
+					while ((line = get.readLine()) != null) {
+						out.println(line);
+					}
+					if (!dup)
+						l5.setText("File Copied");
+					out.close();
+					l2.setText("");
+					l3.setText(
+							"                                                                                                                   ");
+					b1.setEnabled(false);
+					txt.setText("");
+					txt.setEnabled(false);
+					good = true;
+				} catch (IOException e) {
+					l5.setText("An IO error occured");
+				}
 			}
-			PrintWriter out=new PrintWriter(new FileWriter(ftemp));
-			String temp="";
-			while((temp=get.readLine())!=null) {
-				out.println(temp);
-			}
-			out.close();
-			l5.setText("File Copied");
-		} catch (IOException e) {
-			l5.setText("Target file not specified");
+		}
+		if (!good) {
+			if (l2.getText().isEmpty() && l3.getText().contains("  ") && txt.getText().isEmpty())
+				l5.setText("Source file, target directory, and target file not specified.");
+			else if (l2.getText().isEmpty() || l2.getText().equals(""))
+				l5.setText("Source file not specified.");
+			else if (l3.getText().contains("  "))
+				l5.setText("Target directory not specified");
+			else if (txt.getText().isEmpty())
+				l5.setText("Target file not specified");
 		}
 	}
 
