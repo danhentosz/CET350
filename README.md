@@ -1,7 +1,8 @@
-# CET350Program2
+# CET350Program3
 COMPILE:
-javac Program2.java
+javac Program3.java
 RUN:
-java Program2
+java Program3
 
-WHEN RUNNING THE PROGRAM YOU CAN INCLUDE 1 OR 2 COMMAND LINE ARGUMENTS
+you can include a file path as a command line argument:
+java Program3 C:\Users\someuser\Desktop
