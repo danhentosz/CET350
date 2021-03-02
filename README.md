@@ -1,8 +1,8 @@
 # CET350Program3
 COMPILE:
-javac Program3.java
+javac Main.java
 RUN:
-java Program3
+java Main
 
 you can include a file path as a command line argument:
-java Program3 C:\Users\someuser\Desktop
+java Main C:\Users\someuser\Desktop
