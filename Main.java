@@ -109,11 +109,10 @@ class Main
 		// if so, they are validated below.
 		if (args.length != 0)
 		{
-			// if so, creates the file <source>, and appends a "\\" to the end,
-			// - this is so that passing a drive (C:\) takes the user to the root, as they indended.
-			File source = IOFile.OpenFile(args[0] + "\\");
+			// if so, creates the file <source>.
+			File source = IOFile.OpenFile(args[0]);
 			// Checks to see if <args[0]> is a directory, and whether or not it exists.
-			if (IOFile.FileIsDirectory(source) && IOFile.FileExists(source))
+			if (IOFile.FileIsDirectory(source) && IOFile.FileExists(source) && args[0].indexOf("\\") != -1)
 			{
 				// Launches GUIFile() at the given arguement, if so.
 				gui = new GUIFile(source.getAbsolutePath());
