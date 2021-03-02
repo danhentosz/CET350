@@ -1,5 +1,5 @@
 /*
-.Program3, G.U.I. File Copy                   (G7P3.java).
+.Program3, G.U.I. File Copy                   (Main.java).
 .Created By:                                             .
 - Daniel Hentosz,    (HEN3883@calu.edu),                 .
 - Scott Trunzo       (TRU1931@calu.edu),                 .
@@ -104,13 +104,23 @@ class Main
 	{
 		boolean args_valid = true;
 		GUIFile gui = null;
+		
+		// Checks to see if the user entered any arguement(s),
+		// if so, they are validated below.
 		if (args.length != 0)
 		{
+			// if so, creates the file <source>, and appends a "\\" to the end,
+			// - this is so that passing a drive (C:\) takes the user to the root, as they indended.
 			File source = IOFile.OpenFile(args[0] + "\\");
+			// Checks to see if <args[0]> is a directory, and whether or not it exists.
 			if (IOFile.FileIsDirectory(source) && IOFile.FileExists(source))
 			{
+				// Launches GUIFile() at the given arguement, if so.
 				gui = new GUIFile(source.getAbsolutePath());
 			}
+			
+			// Otherwise, the user is informed that the directory given wasn't valid.
+			// - after this, <args_valid> is set to false.
 			else
 			{
 				System.out.print(
@@ -126,6 +136,7 @@ class Main
 
 		}
 		
+		// If the arguements above were invalid, GUIFile() launches at the current program directory.
 		if(!args_valid)
 		{
 			File dir        = IOFile.OpenFile(System.getProperty("user.dir"));
@@ -133,7 +144,7 @@ class Main
 			gui = new GUIFile(dir_path);
 			
 			System.out.print(
-			"| - using program directory as starting point...\n");
+			"| - using program directory as starting point...");
 			System.out.flush();
 		}
 		
@@ -552,10 +563,6 @@ class GUIFile extends Frame implements WindowListener, ActionListener {
 		} else if (source == txtbx_input) {
 			// The user pressed enter when in the text field.
 			copy();
-			lbl_2.setText("");
-			lbl_3.setText("");
-			txtbx_input.setText("");
-			btn_target.setEnabled(false);
 		}
 	}
 
@@ -573,61 +580,77 @@ class GUIFile extends Frame implements WindowListener, ActionListener {
 			- returns a status <lbl_5>, and (depending on internal GUIFile() values) copies a file to the target directory.
 	*/
 	void copy() {
+		
+		// Clears <lbl_5>, in case any text was previously entered into it.
 		lbl_5.setText("");
-		// Used to see if there is a duplicate file.
-		boolean dup     = false;
-		boolean dup_abs = false;
+		
+		// Defines <dup>, a boolean control used for code below,
+		// - used to see if there is a duplicate file.
+		boolean dup = false;
+		
+		// Defines <good>, a boolean control used for code below,
 		// Used to see if the file was copied correctly.
 		boolean good = false;
-		// If all the information fields have data.
-		if (!lbl_2.getText().isEmpty() && !lbl_3.getText().isEmpty() && !lbl_3.getText().contains("  ")
-				&& !txtbx_input.getText().isEmpty()) {
-			// Checking if label 2 is a valid file path.
+		
+		
+		//Checks to see if each information field has data.
+		if (!lbl_2.getText().isEmpty() && !lbl_3.getText().isEmpty() && !lbl_3.getText().contains("  ") && !txtbx_input.getText().isEmpty()) {
+			
+			// Furthermore, validates each file's directory; to see if they are of invalid type(s).
 			File f1 = new File(lbl_2.getText());
 			if (!f1.isFile())
 				lbl_5.setText("Invalid source file");
-			// Checking is label 3 is a valid directory path.
+
 			File f2 = new File(lbl_3.getText());
 			if (!f2.isDirectory())
 				lbl_5.setText("Invalid target directory.");
-			// If both the conditions previously tested are true.
+			
+			
+			// Proceeds only if the two conditions tested above are true.
 			if (f1.isFile() && f2.isDirectory()) {
+				
+				// Defines another temporary file, which is used to step through the target directory.
 				File f3 = new File(lbl_3.getText());
+				
+				// Defines a temporary string array, used to hold the name(s) that <f3> produces.
 				String names[] = f3.list();
-				// Checking if the file already exists.
+				
+				
+				// Steps through <f3>, and informs the user when an output file is going to be overwritten.
 				for (int i = 0; i < names.length; i++) {
 					if (names[i].equals(txtbx_input.getText())) {
-						File temp_one = new File(names[i]);
-						File temp_two = new File(txtbx_input.getText());
-						if(temp_one.getAbsolutePath().equals(temp_two.getAbsolutePath()))
-						{
-							dup_abs = true;
-						}
-						else
-						{
-							dup = true;
-							lbl_5.setText("Output file exists; it will be overwritten.");
-						}
-
+						dup = true;
+						lbl_5.setText("Output file exists; it will be overwritten.");
 					}
 				}
-				if(!dup_abs)
-				{
+				
+				// Tries to open the component(s) used for file writing/reading, before copying the source to the destination.
 				try {
+					
+					// Constructs the BufferedReader() and PrintWriter() objects used for file reading/writing respectively.
 					BufferedReader get = new BufferedReader(new FileReader(lbl_2.getText()));
 					PrintWriter out = new PrintWriter(new FileWriter(lbl_3.getText() + "\\" + txtbx_input.getText()));
+					
+					// Defines <line>, which serves as a character-pointer for the reader/writer.
 					int line;
+					
+					
 					// Reading the file using integers, per the program Instructions.
 					// Typically we would use .readLine(), however, we were instructed to use
 					// .read().
 					while ((line = get.read()) != -1) {
 						out.write(line);
 					}
-					// Only change the text in label 5 if the file was not a duplicate.
+					
+					
+					// Changes output text, but only if the file is not a copy.
 					if (!dup)
 						lbl_5.setText("File Copied.");
+					
 					// Close our PrintWriter object.
 					out.close();
+					
+					// Clears all input fields, resets text input, and sets <good> to true.
 					lbl_2.setText("");
 					lbl_3.setText("");
 					btn_target.setEnabled(false);
@@ -636,13 +659,17 @@ class GUIFile extends Frame implements WindowListener, ActionListener {
 					has_source = false;
 					has_target = false;
 					good = true;
+					
+				// If the try above fails, the error is printed to the console.
 				} catch (IOException e) {
 					lbl_5.setText("An IO error occured.");
 				}
-				}
+				
 				}
 		}
-		if (!good) {// If copy was unsuccessful, we display the correct message in label 5.
+		
+		// If input was not <good>, then a relevant error message is displayed in <lbl_5>.
+		if (!good) {
 			
 			if (lbl_2.getText().isEmpty() && txtbx_input.getText().isEmpty())
 				lbl_5.setText("Source file, target directory, and target file not specified.");
@@ -654,19 +681,30 @@ class GUIFile extends Frame implements WindowListener, ActionListener {
 				lbl_5.setText("Source file not specified.");
 			
 			else if (lbl_3.getText().isEmpty()||lbl_5.equals(""))
-				lbl_5.setText("Target directory not specified");
+				lbl_5.setText("Target directory not specified.");
 			
 			else if (txtbx_input.getText().isEmpty())
-				lbl_5.setText("Target file not specified");
-			
-			else if (dup_abs)
-				lbl_5.setText("Cannot overwrite source file.");
+				lbl_5.setText("Target file not specified.");
 		}
+		
+		// Calls display() if input was <good>, updating the display to include the user's new file.
 		else
 			display(current_dir.getAbsolutePath());
+		
+		return;
 	}
 
-	// This method is used when the user wishes to close the window.
+
+
+	/*
+	The windowClosing() method:
+		Description: 
+			- Acts as a destructor for GUIFile().
+		Preconditions: 
+			- N/A.
+		Postconditions:
+			- frees memory associated with GUIFile() before the program terminates.
+	*/
 	@Override
 	public void windowClosing(WindowEvent ae) {
 		// Removing our listeners so they are erased from memory.
@@ -675,8 +713,10 @@ class GUIFile extends Frame implements WindowListener, ActionListener {
 		btn_confirm.removeActionListener(this);
 		txtbx_input.removeActionListener(this);
 		this.dispose();
+		return;
 	}
 
+	// Below are overwritten (but unimplemented) methods of the Frame() superclass.
 	@Override
 	public void windowDeactivated(WindowEvent arg0) {return;}
 	@Override
