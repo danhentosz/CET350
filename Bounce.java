@@ -1,397 +1,498 @@
-package Bounce;
-
 /*
- * Bounce.java
- * Daniel Hentosz, Nathaniel Dehart, Scott Trunzo
- * Technical Computing Using Java || CET 350 
- * hen3883@calu.edu || deh5850@calu.edu || tru1931@calu.edu
- * GROUP 7
- */
+.Program4, G.U.I. Bounce Program                   (Main.java).
+.Created By:                                             .
+- Daniel Hentosz,    (HEN3883@calu.edu),                 .
+- Scott Trunzo       (TRU1931@calu.edu),                 .
+- Nathaniel Dehart   (DEH5850@calu.edu).                 .
+.Last Revised: March 16th, 2021.                (3/16/2021).
+.Written for Technical Computing Using Java (CET-350-R01).
+Description:
+	Makes use of java's <awt> library to create a GUI,
+		- this GUI controls a object which will bounce around the frame.
+		
+	The user can:
+		- change the object to a circle or a square,
+		- Select a speed at which the object move's,
+		- change the size of the object,
+		- select rather or not the objects previous location is shown(tail or no tail),
+		-and chose rather the object moves, or does not move.
+		
+*/
+
+//Our program package.
+package Bounce;
 
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.AdjustmentEvent;
-import java.awt.event.AdjustmentListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
-import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
+import java.lang.Thread;
 
-class Bounce extends Frame implements WindowListener, ActionListener, ComponentListener, AdjustmentListener {
-	// We will use the null layout manager
-	// ActionListener for buttons
-	// ComponetListener for resizing
-	// AdjustmentListener for scroll Bars
-	// Use a thread so we can multiple thing running at the same time
-	// Use a canvas so we can draw
-	private static final long serialVersionUID = 10L;
-	// Constants used to calculate other parameters in the program
-	private final int WIDTH = 640;// Frame width
-	private final int HEIGHT = 400;// Frame height
-	private final int BUTTONH = 20;// Button height
-	private final int BUTTONHS = 5;// Button height spacing
-	// Variable declarations:
-	private int WinWidth = WIDTH;
-	private int WinHeight = HEIGHT;
-	private int ScreenWidth;// For drawing area
-	private int ScreenHeight;// For drawing area
-	private int WinTop = 10;// Starting top position
-	private int WinLeft = 10;// Starting left position
-	private int BUTTONW = 10;// NOT SURE ON THE VALUE OF THIS..WASNT IN THE SLIDES
-	private int CENTER = (WIDTH / 2);
-	private int BUTTONS = BUTTONW / 4;
-	private Insets I;
-	Button Start, Shape, Clear, Tail, Quit;
-	// A few constants for the scroll bar.
-	private final int MAXObj = 100;
-	private final int MINObj = 10;
-	private final int SPEED = 50;
-	private final int SBvisible = 10;
-	private final int SBunit = 1;// Unit increments.
-	private final int SBblock = 10;// Block increment.
-	private final int SCROLLBARH = BUTTONH;
-	private final int SOBJ = 21;// It must always be an odd value so we have a center.
-	private int SObj = SOBJ;
-	private int SpeedSBmin = 1;
-	private int SpeedSBmax = 100 + SBvisible;
-	private int SpeedSBinit = SPEED;
-	private int ScrollBarW;
-	// Our objects.
-	private Objc Obj;// NOT SURE ON THIS, HE HAS private Objc Obj
-	private Label SPEEDL = new Label("Speed", Label.CENTER);
-	private Label SIZEL = new Label("Size", Label.CENTER);
-	Scrollbar SpeedScrollBar, ObjSizeScrollBar;
+class Bounce extends Frame implements WindowListener, ComponentListener, ActionListener, AdjustmentListener, Runnable {
+	static final long serialVersionUID = 10L;
+	private final int BUTTON_H = 20;// Button height.
+	private final int INIT_SIZE = 21;
+	private final int MAX_SIZE = 100;
+	private final int MIN_SIZE = 10;
+	private final int SB_SPEED = 50;
+	private final int SB_VIS = 10;
+	private final int SB_STEP = 1;
+	private final int SB_BLOCK = 10;
+	private final int SB_HEIGHT = BUTTON_H;
+
+	private int width = 640;// Initial frame width.
+	private int height = 400;// Initial frame height.
+	private int buttonW = 50;// Initial button width.
+	private int buttonS;// Button spacing.
+	private int buttonHS = 5;// Button height spacing.
+	private int center;
+	private int sbMinSpeed = 1;
+	private int sbMaxSpeed = 100 + SB_VIS;
+	private int sbSpeed = SB_SPEED;
+	private int sbW;
+	private int objW = INIT_SIZE;
+	private int delay = 16; // Change this to be a calculation based on "sbSpeed"
+
+	private Objc theObj;
+
+	private boolean isRunning = true;
+	private boolean isPaused = true;
+	private boolean hasStarted = false;
+	private boolean hasTail = true;
+
+	private int winWidth;// Initial frame width.
+	private int winHeight;// Initial frame height.
+	private int winLeft;// Left side of the frame.
+	private int winTop;// Top of the frame.
+	private int screenWidth;// Width of the rendering area.
+	private int screenHeight;// Height of the rendering area.
+
+	private Insets insets;// Insets of the frame.
+
+	private Thread thread;
+
+	// Our buttons:
+	private Button startButton;
+	private Button shapeButton;
+	private Button tailButton;
+	private Button clearButton;
+	private Button quitButton;
+
+	private Label speedLabel = new Label("Speed", Label.CENTER);
+	private Label sizeLabel = new Label("Size", Label.CENTER);
+
+	private Scrollbar sizeBar;
+	private Scrollbar speedBar;
 
 	public static void main(String[] args) {
-		new Bounce();
+		Bounce bounce = new Bounce();
 	}
 
 	Bounce() {
-		setLayout(null);
-		setVisible(true);
-		// To determine the sizes for the sheet
-		MakeSheet();
+		setLayout(null);// Use a null frame layout.
+		setVisible(true);// Make the frame visible.
+		makeSheet();// Determines the sizes for the sheet.
 		try {
-			// Can throw back an exception from adding objects and listeners
-			initComponets();
+			initComponents();// Try to initialize the components.
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		SizeScreen();
-		// To begin animation and graphics.
+		sizeScreen();// Size the items on the screen.
 		start();
 	}
 
-	// For new Frame information and to recalculate Frame sizes
-	//
-	private void MakeSheet() {
-		I = getInsets();
-		ScreenWidth = WinWidth - I.left - I.right;
-		ScreenHeight = WinHeight - I.top - 2 * (BUTTONH + BUTTONHS) - I.bottom;
-		setSize(WinWidth, WinHeight);
-		CENTER = (ScreenWidth / 2);
-		// Using a width of 11 because we have 5 buttons and it just works out nice.
-		BUTTONW = ScreenWidth / 11;
-		BUTTONS = BUTTONW / 4;
-		setBackground(Color.pink);
-		ScrollBarW = 2 * BUTTONW;
+	private void start() {
+		delay = sbMaxSpeed - speedBar.getValue() + 2;
+		theObj.repaint();
+		if (thread == null) {
+			thread = new Thread(this);
+			thread.start();
+		}
 	}
 
-	// For adding the objects, only used once
-	void initComponets() {
-		// Can throw back an IOException
-		Start = new Button("Run");
-		Shape = new Button("Circle");
-		Clear = new Button("Clear");
-		Tail = new Button("No Tail");
-		Quit = new Button("Quit");
-		// Adding our buttons to the frame
-		add("Center", Start);
-		add("Center", Shape);
-		add("Center", Tail);
-		add("Center", Clear);
-		add("Center", Quit);
-		Start.addActionListener(this);
-		Shape.addActionListener(this);
-		Tail.addActionListener(this);
-		Clear.addActionListener(this);
-		Quit.addActionListener(this);
+	// Used to size the objects.
+	private void sizeScreen() {
+		startButton.setLocation(center - 2 * (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		shapeButton.setLocation(center - (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		tailButton.setLocation(center - buttonW / 2, screenHeight + buttonHS + insets.top);
+		clearButton.setLocation(center + (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		quitButton.setLocation(center + 2 * (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		speedBar.setLocation(insets.left + buttonS, screenHeight + buttonHS + insets.top);
+		speedLabel.setLocation(insets.left + buttonS, screenHeight + buttonHS + BUTTON_H + insets.top);
+		sizeBar.setLocation(winWidth - sbW - insets.right - buttonS, screenHeight + buttonHS + insets.top);
+		sizeLabel.setLocation(winWidth - sbW - insets.right - buttonS, screenHeight + buttonHS + BUTTON_H + insets.top);
+
+		startButton.setSize(buttonW, BUTTON_H);
+		shapeButton.setSize(buttonW, BUTTON_H);
+		tailButton.setSize(buttonW, BUTTON_H);
+		clearButton.setSize(buttonW, BUTTON_H);
+		quitButton.setSize(buttonW, BUTTON_H);
+		sizeBar.setSize(sbW, SB_HEIGHT);
+		sizeLabel.setSize(sbW, BUTTON_H);
+		speedLabel.setSize(sbW, BUTTON_H);
+		speedBar.setSize(sbW, SB_HEIGHT);
+
+		theObj.setBounds(insets.left, insets.top, screenWidth, screenHeight);
+	}
+
+	// Used to calculate new frame information and recalculation of the frame sizes.
+	public void makeSheet() {
+		insets = getInsets();
+		// The new screen width will be the window with minus the insets of left and
+		// right.
+		screenWidth = winWidth - insets.left - insets.right;
+		// Calculating the screen height.
+		screenHeight = winHeight - insets.top - insets.bottom - 2 * (BUTTON_H + buttonHS);
+		setSize(winWidth, winHeight);// Set the frame size.
+		center = screenWidth / 2;// Determines the center of the screen.
+		buttonW = screenWidth / 11;// Determine the width of the buttons.
+		sbW = buttonW * 2;
+		buttonS = buttonW / 4;// Determine the button spacing.
+		this.setBackground(Color.lightGray);// Set the background color.
+	}
+
+	// Used to add the objects.
+	public void initComponents() throws Exception, IOException {
+		startButton = new Button("Run");
+		shapeButton = new Button("Circle");
+		tailButton = new Button("No Tail");
+		clearButton = new Button("Clear");
+		quitButton = new Button("Quit");
+
+		speedBar = new Scrollbar(Scrollbar.HORIZONTAL);
+		speedBar.setMaximum(sbMaxSpeed + SB_VIS);
+		speedBar.setMinimum(sbMinSpeed);
+		speedBar.setUnitIncrement(SB_STEP);
+		speedBar.setBlockIncrement(SB_BLOCK);
+		speedBar.setValue(sbSpeed);
+		speedBar.setVisibleAmount(SB_VIS);
+		speedBar.setBackground(Color.gray);
+
+		sizeBar = new Scrollbar(Scrollbar.HORIZONTAL);
+		sizeBar.setMaximum(MAX_SIZE + SB_VIS);
+		sizeBar.setMinimum(MIN_SIZE);
+		sizeBar.setUnitIncrement(SB_STEP);
+		sizeBar.setBlockIncrement(SB_BLOCK);
+		sizeBar.setValue(INIT_SIZE);
+		sizeBar.setVisibleAmount(SB_VIS);
+		sizeBar.setBackground(Color.gray);
+
+		theObj = new Objc(objW, screenWidth, screenHeight);
+		theObj.setBackground(Color.white);
+
+		this.add(startButton);
+		this.add(shapeButton);
+		this.add(tailButton);
+		this.add(clearButton);
+		this.add(quitButton);
+
+		this.add(speedBar);
+		this.add(sizeBar);
+		this.add(speedLabel);
+		this.add(sizeLabel);
+		this.add(theObj);
+
+		speedBar.addAdjustmentListener(this);
+		sizeBar.addAdjustmentListener(this);
+
+		startButton.addActionListener(this);
+		shapeButton.addActionListener(this);
+		tailButton.addActionListener(this);
+		clearButton.addActionListener(this);
+		quitButton.addActionListener(this);
+
 		this.addComponentListener(this);
 		this.addWindowListener(this);
-		// Will attempt to set the size
-		setPreferredSize(new Dimension(WIDTH, HEIGHT));
-		// We will never let the frame get any smaller than the preferred size.
-		setMinimumSize(getPreferredSize());
-		setBounds(WinLeft, WinTop, WIDTH, HEIGHT);
+		this.setPreferredSize(new Dimension(width, height));
+		this.setMinimumSize(getPreferredSize());
+		this.setBounds(winLeft, winTop, width, height);
+
+		speedBar.setEnabled(true);
+		speedBar.setVisible(true);
+
 		validate();
-
-		SpeedScrollBar = new Scrollbar(Scrollbar.HORIZONTAL);
-		SpeedScrollBar.setMaximum(SpeedSBmax);
-		SpeedScrollBar.setMinimum(SpeedSBmin);
-		SpeedScrollBar.setUnitIncrement(SBunit);
-		SpeedScrollBar.setBlockIncrement(SBblock);
-		SpeedScrollBar.setValue(SpeedSBinit);
-		SpeedScrollBar.setVisibleAmount(SBvisible);
-		SpeedScrollBar.setBackground(Color.gray);
-
-		ObjSizeScrollBar = new Scrollbar(Scrollbar.HORIZONTAL);
-		ObjSizeScrollBar.setMaximum(MAXObj);
-		ObjSizeScrollBar.setMinimum(MINObj);
-		ObjSizeScrollBar.setUnitIncrement(SBunit);
-		ObjSizeScrollBar.setBlockIncrement(SBblock);
-		ObjSizeScrollBar.setValue(SOBJ);
-		ObjSizeScrollBar.setVisibleAmount(SBvisible);
-		ObjSizeScrollBar.setBackground(Color.gray);
-		Obj = new Objc(SObj, ScreenWidth, ScreenHeight);
-		Obj.setBackground(Color.white);
-
-		add(SpeedScrollBar);
-		add(ObjSizeScrollBar);
-		add(SPEEDL);
-		add(SIZEL);
-		add(Obj);
-		SpeedScrollBar.addAdjustmentListener(this);
-		ObjSizeScrollBar.addAdjustmentListener(this);
 	}
 
-	// For sizing of the objects
-	void SizeSheet() {
+	// Used to close the window when the user exits, or the quit button is pressed.
+	public void stop() {
+		isRunning = false;
 
-	}
+		startButton.removeActionListener(this);
+		shapeButton.removeActionListener(this);
+		tailButton.removeActionListener(this);
+		clearButton.removeActionListener(this);
+		quitButton.removeActionListener(this);
 
-	void SizeScreen() {
-		// Positioning the buttons.
-		Start.setLocation(CENTER - 2 * (BUTTONW + BUTTONS) - BUTTONW / 2, ScreenHeight + BUTTONHS + I.top);
-		Shape.setLocation(CENTER - BUTTONW - BUTTONS - BUTTONW / 2, ScreenHeight + BUTTONHS + I.top);
-		Tail.setLocation(CENTER - BUTTONW / 2, ScreenHeight + BUTTONHS + I.top);
-		Clear.setLocation(CENTER + BUTTONS + BUTTONW / 2, ScreenHeight + BUTTONHS + I.top);
-		Quit.setLocation(CENTER + BUTTONW + 2 * BUTTONS + BUTTONW / 2, ScreenHeight + BUTTONHS + I.top);
-		// Size the buttons.
-		Start.setSize(BUTTONW, BUTTONH);
-		Shape.setSize(BUTTONW, BUTTONH);
-		Tail.setSize(BUTTONW, BUTTONH);
-		Clear.setSize(BUTTONW, BUTTONH);
-		Quit.setSize(BUTTONW, BUTTONH);
+		speedBar.removeAdjustmentListener(this);
+		sizeBar.removeAdjustmentListener(this);
 
-		SpeedScrollBar.setLocation(I.left + BUTTONS, ScreenHeight + BUTTONHS + I.top);
-		ObjSizeScrollBar.setLocation(WinWidth - ScrollBarW - I.right - BUTTONS, ScreenHeight + BUTTONHS + I.top);
-		SPEEDL.setLocation(I.left + BUTTONS, ScreenHeight + BUTTONHS + BUTTONH + I.top);
-		SIZEL.setLocation(WinWidth - ScrollBarW - I.right, ScreenHeight + BUTTONHS + BUTTONH + I.top);
-		SpeedScrollBar.setSize(ScrollBarW, SCROLLBARH);
-		ObjSizeScrollBar.setSize(ScrollBarW, SCROLLBARH);
-		SPEEDL.setSize(ScrollBarW, BUTTONH);
-		SIZEL.setSize(ScrollBarW, SCROLLBARH);
-		Obj.setBounds(I.left, I.top, ScreenWidth, ScreenHeight);
-	}
-
-	public void start() {
-		// Obj.repaint();
-	}
-
-	@Override
-	public void componentHidden(ComponentEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void componentMoved(ComponentEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void componentResized(ComponentEvent ae) {
-		WinWidth = getWidth();
-		WinHeight = getWidth();
-		// Will recalculate screen width, height, and button sizes
-		MakeSheet();
-		// Will change the sizes in the frame
-		SizeScreen();
-		Obj.reSize(ScreenWidth, ScreenHeight);// THIS LINE MIGHT BE GOOD AFTER WE SET THE WIDTH AND HEIGHT, IDK
-	}
-
-	@Override
-	public void componentShown(ComponentEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void actionPerformed(ActionEvent ae) {
-		Object source = ae.getSource();
-		if (source == Start) {
-			if (Start.getLabel().equals("Pause")) {
-				Start.setLabel("Run");
-			} else {
-				Start.setLabel("Pause");
-			}
-		} else if (source == Shape) {
-			if (Shape.getLabel().equals("Circle")) {
-				Shape.setLabel("Square");
-				Obj.rectangle(false);
-			} else {
-				Shape.setLabel("Circle");
-				Obj.rectangle(true);
-			}
-			Obj.repaint();
-		} else if (source == Tail) {
-			if (Tail.getLabel().equals("Tail")) {
-				Tail.setLabel("No Tail");
-			} else {
-				Tail.setLabel("Tail");
-			}
-		} else if (source == Clear) {
-			Obj.Clear();
-			Obj.repaint();
-		} else if (source == Quit)
-			stop();
-	}
-
-	@Override
-	public void windowActivated(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowClosed(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowClosing(WindowEvent arg0) {
-		stop();
-	}
-
-	// Used to close everything when the user wants to close the window
-	// We can call this from windowCloing and our ButtonEvent t quit the program.
-	void stop() {
-		Start.removeActionListener(this);
-		Shape.removeActionListener(this);
-		Clear.removeActionListener(this);
-		Tail.removeActionListener(this);
-		Quit.removeActionListener(this);
 		this.removeComponentListener(this);
 		this.removeWindowListener(this);
-		SpeedScrollBar.removeAdjustmentListener(this);
-		ObjSizeScrollBar.removeAdjustmentListener(this);
+
 		dispose();
 		System.exit(0);
 	}
 
 	@Override
-	public void windowDeactivated(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowDeiconified(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowIconified(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void windowOpened(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void adjustmentValueChanged(AdjustmentEvent ae) {
-		int TS;
-		Scrollbar sb = (Scrollbar) ae.getSource();
-		if (sb == SpeedScrollBar) {
-			// We are not going to do anything with the speed inn this program.
+	public void run() {
+		// Continues to loop as long as the run flag is true.
+		while (isRunning) {
+			if (!isPaused) {
+				theObj.repaint();
+				try {
+					Thread.sleep(delay);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		}
-		if (sb == ObjSizeScrollBar) {
-			TS = ae.getValue();
-			TS = (TS / 2) * 2 + 1;// Making it an odd size, so we cn get a center.
-			Obj.update(TS);
+	}
+
+	@Override
+	public void adjustmentValueChanged(AdjustmentEvent e) {
+		int scrollVal;
+		Scrollbar sb = (Scrollbar) e.getSource();
+		scrollVal = sb.getValue();
+
+		if (sb == speedBar) {
+			delay = sbMaxSpeed - speedBar.getValue() + 2;
+		} else if (sb == sizeBar) {
+			scrollVal = (scrollVal / 2) * 2 + 1;
+			theObj.updateSize(scrollVal);
 		}
-		Obj.repaint();
+		theObj.repaint();
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		Object source = e.getSource();
+
+		if (source == startButton) {
+			if (isPaused) {
+				isPaused = false;
+				startButton.setLabel("Stop");
+			} else {
+				isPaused = true;
+				startButton.setLabel("Run");
+			}
+		} else if (source == shapeButton) {
+			if (shapeButton.getLabel() == "Circle") {
+				shapeButton.setLabel("Square");
+				theObj.setRect(false);
+			} else {
+				shapeButton.setLabel("Circle");
+				theObj.setRect(true);
+			}
+			theObj.repaint();
+		} else if (source == tailButton) {
+			if (hasTail) {
+				hasTail = false;
+				theObj.setTail(false);
+				tailButton.setLabel("Tail");
+			} else {
+				hasTail = true;
+				theObj.setTail(true);
+				tailButton.setLabel("No Tail");
+			}
+		} else if (source == clearButton) {
+			theObj.clear();
+			theObj.repaint();
+		} else // Quit button
+		{
+			stop();
+		}
+	}
+
+	@Override
+	public void componentResized(ComponentEvent e) {
+		winWidth = getWidth();
+		winHeight = getHeight();
+		makeSheet();
+		theObj.reSize(screenWidth, screenHeight);
+		sizeScreen();
+	}
+
+	@Override
+	public void componentMoved(ComponentEvent e) {
+
+	}
+
+	@Override
+	public void componentShown(ComponentEvent e) {
+
+	}
+
+	@Override
+	public void componentHidden(ComponentEvent e) {
+
+	}
+
+	@Override
+	public void windowOpened(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowClosing(WindowEvent e) {
+		stop();
+	}
+
+	@Override
+	public void windowClosed(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowIconified(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowDeiconified(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowActivated(WindowEvent e) {
+
+	}
+
+	@Override
+	public void windowDeactivated(WindowEvent e) {
+
 	}
 }
 
 class Objc extends Canvas {
-	private static final long serialVersionUID = 11L;
-	private int ScreenWidth;
-	private int ScreenHeight;
-	private int SObj;
+	static final long serialVersionUID = 11L;
+
+	private int screenWidth;
+	private int screenHeight;
+	private int size;
+	private int lastSize;
 	private int x, y;
-	private boolean rect = true;
-	private boolean clear = false;
+	private int oldX, oldY;
+	private boolean isRect;
+	private boolean clearFlag;
+	private boolean hasTail;
+	private boolean wasRect;
+	private Point velocity;
 
-	public Objc(int SB, int w, int h) {
-		ScreenWidth = w;
-		ScreenHeight = h;
-		SObj = SB;
-		rect = true;
-		clear = false;
-		y = ScreenHeight / 2;
-		x = ScreenWidth / 2;
+	Objc(int objSize, int width, int height) {
+		screenWidth = width;
+		screenHeight = height;
+		size = objSize;
+		isRect = true;
+		clearFlag = false;
+		x = screenWidth / 2;
+		y = screenHeight / 2;
+		velocity = new Point(1, 1);
+		hasTail = true;
 	}
 
-	public void rectangle(boolean r) {
-		rect = r;
+	public void setTail(boolean hasTail) {
+		this.hasTail = hasTail;
+		lastSize = size;
+		wasRect = isRect;
+		oldX = x;
+		oldY = y;
 	}
 
-	public void update(int NS) {
-		SObj = NS;
+	public void setRect(boolean isRect) {
+		this.isRect = isRect;
 	}
 
-	public void reSize(int w, int h) {
-		ScreenWidth = w;
-		ScreenHeight = h;
-		y = ScreenHeight / 2;
-		x = ScreenWidth / 2;
+	@Override
+	public void update(Graphics g) {
+		if (clearFlag) {
+			clearFlag = false;
+			super.paint(g);
+			g.setColor(Color.red);
+			g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
+		}
+
+		// Update the position
+		x += velocity.x;
+		y += velocity.y;
+
+		// Check for boundaries
+		if ((velocity.x > 0 && x + size / 2 > screenWidth - 4) || (velocity.x < 0 && x - size / 2 < 2))
+			velocity.x = -velocity.x;
+		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 2))
+			velocity.y = -velocity.y;
+
+		// Draws over the last draw of the Bounce Object
+		if (!hasTail) {
+			g.setColor(Color.white);
+			if (wasRect)
+				g.fillRect(oldX - lastSize / 2, oldY - lastSize / 2, lastSize + 1, lastSize + 1);
+			else
+				g.fillOval(oldX - lastSize / 2 - 1, oldY - lastSize / 2 - 1, lastSize + 2, lastSize + 2);
+			lastSize = size;
+			wasRect = isRect;
+			oldX = x;
+			oldY = y;
+		}
+
+		if (isRect) {
+			g.setColor(Color.lightGray);
+			g.fillRect(x - size / 2, y - size / 2, size, size);
+			g.setColor(Color.black);
+			g.drawRect(x - size / 2, y - size / 2, size, size);
+		} else {
+			g.setColor(Color.lightGray);
+			g.fillOval(x - size / 2, y - size / 2, size, size);
+			g.setColor(Color.black);
+			g.drawOval(x - size / 2, y - size / 2, size, size);
+		}
 	}
 
-	public void Clear() {
-		clear = true;
+	public void reSize(int screenWidth, int screenHeight) {
+		this.screenWidth = screenWidth;
+		this.screenHeight = screenHeight;
+
+		checkOverlap();
 	}
 
+	// Checks if the bounce object has a position beyond any of the boundaries and
+	// resolve it
+	// If the object is beyond a boundary then it will also set its velocity
+	// accordingly
+	public void checkOverlap() {
+		if (x + size / 2 > screenWidth - 4) {
+			velocity.x = -1;
+			x = screenWidth - 2 - size / 2;
+		} else if (x - size / 2 < 2) {
+			velocity.x = 1;
+			x = size / 2;
+		}
+		if (y + size / 2 > screenHeight - 4) {
+			velocity.y = -1;
+			y = screenHeight - 2 - size / 2;
+		} else if (y - size / 2 < 2) {
+			velocity.y = 1;
+			y = size / 2;
+		}
+	}
+
+	public void updateSize(int size) {
+		this.size = size;
+
+		checkOverlap();
+	}
+
+	public void clear() {
+		clearFlag = true;
+	}
+
+	@Override
 	public void paint(Graphics g) {
 		g.setColor(Color.red);
-		g.drawRect(0, 0, ScreenWidth - 1, ScreenHeight - 1);
+		g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
 		update(g);
-	}
-
-	// Will perform the drawing/
-	public void update(Graphics g) {
-		if (clear) {
-			super.paint(g);
-			clear = false;
-			g.setColor(Color.red);
-			g.drawRect(0, 0, ScreenWidth - 1, ScreenHeight - 1);
-		}
-		if (rect) {
-			g.setColor(Color.lightGray);
-			// Filling the rectangle using x as the center position.
-			// Going half the width to the left and half the width up with y as the center
-			// psoition
-			g.fillRect(x - (SObj - 1) / 2, y - (SObj - 1) / 2, SObj, SObj);
-			g.setColor(Color.black);
-			g.drawRect(x - (SObj - 1) / 2, y - (SObj - 1) / 2, SObj - 1, SObj - 1);
-		} else {
-			// If its not a rectangle, its a circle.
-			// Same thing we did with rectangle, except we re using the fillOval as opposed
-			// to the deawOval.
-			g.setColor(Color.lightGray);
-			g.fillOval(x - (SObj - 1) / 2, y - (SObj - 1) / 2, SObj, SObj);
-			g.setColor(Color.black);
-			g.drawOval(x - (SObj - 1) / 2, y - (SObj - 1) / 2, SObj - 1, SObj - 1);
-		}
 	}
 }
