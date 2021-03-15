@@ -23,6 +23,6 @@ import Bounce.Bounce;
 
 public class Program4 {
 	public static void main(String[] args) {
-		Bounce bounce = new Bounce();
+		new Bounce();
 	}
 }
