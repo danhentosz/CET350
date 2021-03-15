@@ -121,8 +121,8 @@ class GUIBounce extends Frame implements WindowListener, ComponentListener, Acti
 	private final int SB_HEIGHT = BUTTON_H;
 
 	// Defines mutable versions of the frame <width>, <height>, and <center>.
-	private int width = 640;
-	private int height = 400;
+	private final int width = 640;
+	private final int height = 400;
 	private int center;
 	
 	// Defines the mutable button width (changes with horizontal resizing).
