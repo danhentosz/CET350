@@ -27,7 +27,8 @@ import java.awt.event.*;
 import java.io.*;
 import java.lang.Thread;
 
-class Bounce extends Frame implements WindowListener, ComponentListener, ActionListener, AdjustmentListener, Runnable {
+
+public class Bounce extends Frame implements WindowListener, ComponentListener, ActionListener, AdjustmentListener, Runnable {
 	static final long serialVersionUID = 10L;
 	private final int BUTTON_H = 20;// Button height.
 	private final int INIT_SIZE = 21;
@@ -83,11 +84,7 @@ class Bounce extends Frame implements WindowListener, ComponentListener, ActionL
 	private Scrollbar sizeBar;
 	private Scrollbar speedBar;
 
-	public static void main(String[] args) {
-		Bounce bounce = new Bounce();
-	}
-
-	Bounce() {
+	public Bounce() {
 		setLayout(null);// Use a null frame layout.
 		setVisible(true);// Make the frame visible.
 		makeSheet();// Determines the sizes for the sheet.
@@ -102,7 +99,6 @@ class Bounce extends Frame implements WindowListener, ComponentListener, ActionL
 
 	private void start() {
 		delay = sbMaxSpeed - speedBar.getValue() + 2;
-		theObj.repaint();
 		if (thread == null) {
 			thread = new Thread(this);
 			thread.start();
@@ -237,6 +233,7 @@ class Bounce extends Frame implements WindowListener, ComponentListener, ActionL
 		// Continues to loop as long as the run flag is true.
 		while (isRunning) {
 			if (!isPaused) {
+				theObj.updatePhysics();
 				theObj.repaint();
 				try {
 					Thread.sleep(delay);
@@ -264,7 +261,6 @@ class Bounce extends Frame implements WindowListener, ComponentListener, ActionL
 			scrollVal = (scrollVal / 2) * 2 + 1;
 			theObj.updateSize(scrollVal);
 		}
-		theObj.repaint();
 	}
 
 	@Override
@@ -301,8 +297,7 @@ class Bounce extends Frame implements WindowListener, ComponentListener, ActionL
 		} else if (source == clearButton) {
 			theObj.clear();
 			theObj.repaint();
-		} else // Quit button
-		{
+		} else { // Quit button
 			stop();
 		}
 	}
@@ -392,6 +387,8 @@ class Objc extends Canvas {
 		y = screenHeight / 2;
 		velocity = new Point(1, 1);
 		hasTail = true;
+		//checkOverlap();
+		repaint();
 	}
 
 	public void setTail(boolean hasTail) {
@@ -405,6 +402,19 @@ class Objc extends Canvas {
 	public void setRect(boolean isRect) {
 		this.isRect = isRect;
 	}
+	
+	// Updates the position of the object
+	public void updatePhysics() {
+		// Update the position
+		x += velocity.x;
+		y += velocity.y;
+
+		// Check for boundaries
+		if ((velocity.x > 0 && x + size / 2 > screenWidth - 4) || (velocity.x < 0 && x - size / 2 < 2))
+			velocity.x = -velocity.x;
+		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 3))
+			velocity.y = -velocity.y;
+	}
 
 	@Override
 	public void update(Graphics g) {
@@ -414,17 +424,7 @@ class Objc extends Canvas {
 			g.setColor(Color.red);
 			g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
 		}
-
-		// Update the position
-		x += velocity.x;
-		y += velocity.y;
-
-		// Check for boundaries
-		if ((velocity.x > 0 && x + size / 2 > screenWidth - 4) || (velocity.x < 0 && x - size / 2 < 2))
-			velocity.x = -velocity.x;
-		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 2))
-			velocity.y = -velocity.y;
-
+		
 		// Draws over the last draw of the Bounce Object
 		if (!hasTail) {
 			g.setColor(Color.white);
@@ -456,6 +456,7 @@ class Objc extends Canvas {
 		this.screenHeight = screenHeight;
 
 		checkOverlap();
+		repaint();
 	}
 
 	// Checks if the bounce object has a position beyond any of the boundaries and
@@ -465,17 +466,17 @@ class Objc extends Canvas {
 	public void checkOverlap() {
 		if (x + size / 2 > screenWidth - 4) {
 			velocity.x = -1;
-			x = screenWidth - 2 - size / 2;
+			x = screenWidth - 3 - size / 2;
 		} else if (x - size / 2 < 2) {
 			velocity.x = 1;
-			x = size / 2;
+			x = size / 2 + 1;
 		}
 		if (y + size / 2 > screenHeight - 4) {
 			velocity.y = -1;
-			y = screenHeight - 2 - size / 2;
-		} else if (y - size / 2 < 2) {
+			y = screenHeight - 3 - size / 2;
+		} else if (y - size / 2 < 3) {
 			velocity.y = 1;
-			y = size / 2;
+			y = size / 2 + 2;
 		}
 	}
 
@@ -483,6 +484,7 @@ class Objc extends Canvas {
 		this.size = size;
 
 		checkOverlap();
+		repaint();
 	}
 
 	public void clear() {
