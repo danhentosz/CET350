@@ -121,8 +121,8 @@ class GUIBounce extends Frame implements WindowListener, ComponentListener, Acti
 	private final int SB_HEIGHT = BUTTON_H;
 
 	// Defines mutable versions of the frame <width>, <height>, and <center>.
-	private final int width = 640;
-	private final int height = 400;
+	private int width = 640;
+	private int height = 400;
 	private int center;
 	
 	// Defines the mutable button width (changes with horizontal resizing).
@@ -432,6 +432,8 @@ class GUIBounce extends Frame implements WindowListener, ComponentListener, Acti
 
 class Objc extends Canvas {
 	static final long serialVersionUID = 11L;
+	
+	private final int BOUNCE_SPEED = 2;
 
 	private int screenWidth;
 	private int screenHeight;
@@ -451,12 +453,9 @@ class Objc extends Canvas {
 		size = objSize;
 		isRect = true;
 		clearFlag = false;
-		int tempX = (width/2);
-		int tempY = (height/2);
-
-		x = tempX;
-		y = tempY;
-		velocity = new Point(1, 1);
+		x = width/2;
+		y = height/2;
+		velocity = new Point(BOUNCE_SPEED, BOUNCE_SPEED);
 		hasTail = true;
 	}
 
@@ -478,11 +477,13 @@ class Objc extends Canvas {
 		x += velocity.x;
 		y += velocity.y;
 
-		// Check for boundaries
-		if ((velocity.x > 0 && x + size / 2 > screenWidth - 4) || (velocity.x < 0 && x - size / 2 < 2))
+		// Check for boundaries and "bounce"
+		/*if ((velocity.x > 0 && x + size / 2 > screenWidth - 4) || (velocity.x < 0 && x - size / 2 < 2))
 			velocity.x = -velocity.x;
 		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 2))
-			velocity.y = -velocity.y;
+			velocity.y = -velocity.y;*/
+		
+		checkOverlap();
 	}
 
 	@Override
@@ -533,17 +534,17 @@ class Objc extends Canvas {
 	// accordingly
 	public void checkOverlap() {
 		if (x + size / 2 > screenWidth - 4) {
-			velocity.x = -1;
+			velocity.x = -BOUNCE_SPEED;
 			x = screenWidth - 3 - size / 2;
 		} else if (x - size / 2 < 2) {
-			velocity.x = 1;
+			velocity.x = BOUNCE_SPEED;
 			x = size / 2 + 1;
 		}
 		if (y + size / 2 > screenHeight - 4) {
-			velocity.y = -1;
+			velocity.y = -BOUNCE_SPEED;
 			y = screenHeight - 3 - size / 2;
 		} else if (y - size / 2 < 2) {
-			velocity.y = 1;
+			velocity.y = BOUNCE_SPEED;
 			y = size / 2 + 1;
 		}
 	}
