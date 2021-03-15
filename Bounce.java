@@ -27,8 +27,8 @@ import java.awt.event.*;
 import java.io.*;
 import java.lang.Thread;
 
-
-public class Bounce extends Frame implements WindowListener, ComponentListener, ActionListener, AdjustmentListener, Runnable {
+public class Bounce extends Frame
+		implements WindowListener, ComponentListener, ActionListener, AdjustmentListener, Runnable {
 	static final long serialVersionUID = 10L;
 	private final int BUTTON_H = 20;// Button height.
 	private final int INIT_SIZE = 21;
@@ -36,8 +36,6 @@ public class Bounce extends Frame implements WindowListener, ComponentListener, 
 	private final int MIN_SIZE = 10;
 	private final int SB_SPEED = 50;
 	private final int SB_VIS = 10;
-	private final int SB_STEP = 1;
-	private final int SB_BLOCK = 10;
 	private final int SB_HEIGHT = BUTTON_H;
 
 	private int width = 640;// Initial frame width.
@@ -57,7 +55,6 @@ public class Bounce extends Frame implements WindowListener, ComponentListener, 
 
 	private boolean isRunning = true;
 	private boolean isPaused = true;
-	private boolean hasStarted = false;
 	private boolean hasTail = true;
 
 	private int winWidth;// Initial frame width.
@@ -157,19 +154,13 @@ public class Bounce extends Frame implements WindowListener, ComponentListener, 
 		speedBar = new Scrollbar(Scrollbar.HORIZONTAL);
 		speedBar.setMaximum(sbMaxSpeed + SB_VIS);
 		speedBar.setMinimum(sbMinSpeed);
-		speedBar.setUnitIncrement(SB_STEP);
-		speedBar.setBlockIncrement(SB_BLOCK);
 		speedBar.setValue(sbSpeed);
-		speedBar.setVisibleAmount(SB_VIS);
 		speedBar.setBackground(Color.gray);
 
 		sizeBar = new Scrollbar(Scrollbar.HORIZONTAL);
 		sizeBar.setMaximum(MAX_SIZE + SB_VIS);
 		sizeBar.setMinimum(MIN_SIZE);
-		sizeBar.setUnitIncrement(SB_STEP);
-		sizeBar.setBlockIncrement(SB_BLOCK);
 		sizeBar.setValue(INIT_SIZE);
-		sizeBar.setVisibleAmount(SB_VIS);
 		sizeBar.setBackground(Color.gray);
 
 		theObj = new Objc(objW, screenWidth, screenHeight);
@@ -180,7 +171,6 @@ public class Bounce extends Frame implements WindowListener, ComponentListener, 
 		this.add(tailButton);
 		this.add(clearButton);
 		this.add(quitButton);
-
 		this.add(speedBar);
 		this.add(sizeBar);
 		this.add(speedLabel);
@@ -189,7 +179,6 @@ public class Bounce extends Frame implements WindowListener, ComponentListener, 
 
 		speedBar.addAdjustmentListener(this);
 		sizeBar.addAdjustmentListener(this);
-
 		startButton.addActionListener(this);
 		shapeButton.addActionListener(this);
 		tailButton.addActionListener(this);
@@ -312,6 +301,11 @@ public class Bounce extends Frame implements WindowListener, ComponentListener, 
 	}
 
 	@Override
+	public void windowClosing(WindowEvent e) {
+		stop();
+	}
+
+	@Override
 	public void componentMoved(ComponentEvent e) {
 
 	}
@@ -329,11 +323,6 @@ public class Bounce extends Frame implements WindowListener, ComponentListener, 
 	@Override
 	public void windowOpened(WindowEvent e) {
 
-	}
-
-	@Override
-	public void windowClosing(WindowEvent e) {
-		stop();
 	}
 
 	@Override
@@ -387,7 +376,7 @@ class Objc extends Canvas {
 		y = screenHeight / 2;
 		velocity = new Point(1, 1);
 		hasTail = true;
-		//checkOverlap();
+		// checkOverlap();
 		repaint();
 	}
 
@@ -402,7 +391,7 @@ class Objc extends Canvas {
 	public void setRect(boolean isRect) {
 		this.isRect = isRect;
 	}
-	
+
 	// Updates the position of the object
 	public void updatePhysics() {
 		// Update the position
@@ -424,7 +413,7 @@ class Objc extends Canvas {
 			g.setColor(Color.red);
 			g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
 		}
-		
+
 		// Draws over the last draw of the Bounce Object
 		if (!hasTail) {
 			g.setColor(Color.white);
@@ -482,7 +471,6 @@ class Objc extends Canvas {
 
 	public void updateSize(int size) {
 		this.size = size;
-
 		checkOverlap();
 		repaint();
 	}
