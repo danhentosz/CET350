@@ -1,9 +1,10 @@
 /*
-.Program4, G.U.I. Bounce Program                   (Main.java).
+.Program4, G.U.I. Bounce Program                   (Bounce.java).
 .Created By:                                             .
 - Daniel Hentosz,    (HEN3883@calu.edu),                 .
 - Scott Trunzo       (TRU1931@calu.edu),                 .
 - Nathaniel Dehart   (DEH5850@calu.edu).                 .
+-Group 7
 .Last Revised: March 16th, 2021.                (3/16/2021).
 .Written for Technical Computing Using Java (CET-350-R01).
 Description:
