@@ -121,8 +121,8 @@ class GUIBounce extends Frame implements WindowListener, ComponentListener, Acti
 	private final int SB_HEIGHT = BUTTON_H;
 
 	// Defines mutable versions of the frame <width>, <height>, and <center>.
-	private int width = 640;
-	private int height = 400;
+	private final int width = 640;
+	private final int height = 400;
 	private int center;
 	
 	// Defines the mutable button width (changes with horizontal resizing).
@@ -483,7 +483,7 @@ class Objc extends Canvas {
 		// Check for boundaries
 		if ((velocity.x > 0 && x + size / 2 > screenWidth - 4) || (velocity.x < 0 && x - size / 2 < 2))
 			velocity.x = -velocity.x;
-		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 3))
+		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 2))
 			velocity.y = -velocity.y;
 	}
 
@@ -493,7 +493,7 @@ class Objc extends Canvas {
 			clearFlag = false;
 			super.paint(g);
 			g.setColor(Color.red);
-			g.drawRect(0, 0, screenWidth - 1, screenHeight - 2);
+			g.drawRect(0, 0, screenWidth - 1, screenHeight - 1);
 		}
 
 		// Draws over the last draw of the Bounce Object
@@ -563,7 +563,7 @@ class Objc extends Canvas {
 	@Override
 	public void paint(Graphics g) {
 		g.setColor(Color.red);
-		g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
+		g.drawRect(0, 0, screenWidth - 1, screenHeight - 1);
 		update(g);
 	}
 }
