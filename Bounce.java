@@ -1,11 +1,10 @@
 /*
-.Program4, G.U.I. Bounce Program                   (Bounce.java).
+.Program4, G.U.I. Bounce Program     (Bounce\Bounce.java).
 .Created By:                                             .
 - Daniel Hentosz,    (HEN3883@calu.edu),                 .
-- Scott Trunzo       (TRU1931@calu.edu),                 .
-- Nathaniel Dehart   (DEH5850@calu.edu).                 .
--Group 7
-.Last Revised: March 16th, 2021.                (3/16/2021).
+- Nathaniel Dehart   (DEH5850@calu.edu),                 .
+- Scott Trunzo       (TRU1931@calu.edu).                 .
+.Last Revised: March 16th, 2021.              (3/16/2021).
 .Written for Technical Computing Using Java (CET-350-R01).
 Description:
 	Makes use of java's <awt> library to create a GUI,
@@ -15,51 +14,152 @@ Description:
 		- change the object to a circle or a square,
 		- Select a speed at which the object move's,
 		- change the size of the object,
-		- select rather or not the objects previous location is shown(tail or no tail),
+		- select whether or not the objects previous location is shown(tail or no tail),
 		-and chose rather the object moves, or does not move.
+	
+	For more implementation details, see the class header at GUIBounce().
 		
 */
 
-//Our program package.
+// Packages the program into a folder called "Bounce",
+// When compiling this file via javac, intended command notation is "javac -d . Bounce,java",
+// - intended run notation is "java Bounce.Bounce" (contains main() method of this file).
 package Bounce;
 
+
+// Imports components required for Frame(), Runnable(), and various action listeners. 
+// ...lang.Thread() is also imported.
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.lang.Thread;
 
-public class Bounce extends Frame
-		implements WindowListener, ComponentListener, ActionListener, AdjustmentListener, Runnable {
+
+/*
+The Bounce() Class:
+	Description:
+		- serves as a container class for main() (see block comment below),
+	Extends:
+		- N/A.
+	Implements:
+		- N/A.
+	Preconditions:
+		- shared with main() (see below),
+	Postconditions:
+		- Constructor returns an instance of Bounce().
+*/
+public class Bounce
+{
+	/*
+	The main() method:
+		Description: 
+			- Opens a new instance of GUIBounce(). 
+		Preconditions:
+			N/A: method ignores values in <args>[].
+		Postconditions:
+			- Creates a new instance of GUIBounce, <gui>,
+				+ from here, implemented methods loop until the program is exited.
+	*/
+	public static void main(String[] args)
+	{
+		GUIBounce gui = new GUIBounce();
+		return;
+	}
+}
+
+
+
+/*
+The GUIBounce() Class:
+	Description:
+		- serves as a container window (Frame()) for an instance of Objc(),
+		- allows interface with Objc() via several UI elements(),
+			+ Speed Controls   - Scroll (Controls Objc()'s current iteraton speed; higher = faster),
+			+ Run     / Stop   - Button (Toggles between running and pausing Objc()'s iterations),
+			+ Circle  / Square - Button (Toggles the vector-shape inside of Objc() between a circle and a square),
+			+ No Tail / Tail   - Button (Toggles whether or not the vector-shape inside of Objc() leaves a drawn tail on the canvas),
+			+ Clear            - Button (Clears the current canvas inside of Objc()),
+			+ Quit Button      - Button (Exits the program (functionality is the same as clicking the [x] at the upper right),
+			+ Size Controls    - Scroll (Controls Objc()'s vector-shape's current size on the screen; higher = larger).
+		- 
+	Extends:
+		- Frame(), from java.awt...
+	Implements:
+		- WindowListener()     - for window related events (open, close, etc...),
+		- ComponentListener()  - for certain java.awt... components (Button(), ScrollBar()),
+		- ActionListener()     - for action(s) taken by the user's computer's peripherals,
+		- AdjustmentListener() - for adjustment(s) to certain components (ScrollBar()),
+		- Runnable()           - for the use of Thread() throughout instances of GUIBounce().
+	Preconditions:
+		- N/A.
+	Postconditions:
+		- Constructor returns an instance of GUIBounce(),
+			+ internal methods (makeSheet(), initComponents(), sizeScreen(), start()) are also ran.
+				- start() begins an internal loop, which can only be terminated by user input (clicking on "Quit" or [x]).
+*/
+class GUIBounce extends Frame implements WindowListener, ComponentListener, ActionListener, AdjustmentListener, Runnable {
+	// Defines <serialVersionUID>, a universal identifier for this frame class's instances.
+	// - this variable is FINAL, and cannot be changed.
 	static final long serialVersionUID = 10L;
-	private final int BUTTON_H = 20;// Button height.
+	
+	
+	// Defines <BUTTON_H>, the height of all buttons within GUIBounce().
+	private final int BUTTON_H = 20;
+	
+	// Defines <INIT_SIZE>, which is carried onto objW (the mutable component width).
 	private final int INIT_SIZE = 21;
+	
+	// Defines the MAX and MIN size for Objc's shape, <MAX_SIZE> and <MIN_SIZE>.
 	private final int MAX_SIZE = 100;
 	private final int MIN_SIZE = 10;
+	
+	// Defines <SB_SPEED>, the starting value of the ScrollBar("Speed").
 	private final int SB_SPEED = 50;
+	
+	// Defines <SB_VIS>, a constant added to the width of ScrollBar() instances.
 	private final int SB_VIS = 10;
 	private final int SB_HEIGHT = BUTTON_H;
 
-	private int width = 640;// Initial frame width.
-	private int height = 400;// Initial frame height.
-	private int buttonW = 50;// Initial button width.
-	private int buttonS;// Button spacing.
-	private int buttonHS = 5;// Button height spacing.
+	// Defines mutable versions of the frame <width>, <height>, and <center>.
+	private int width = 640;
+	private int height = 400;
 	private int center;
+	
+	// Defines the mutable button width (changes with horizontal resizing).
+	private int buttonW = 50;
+
+	// Defines the mutable button width spacing  (changes with horizontal resizing).
+	private int buttonWS;
+	
+	// Defines the mutable button height spacing (changes with vertical resizing).
+	private int buttonHS = 5;
+
+	// Defines the minimum, maximum, and current speed values which can be held by a ScrollBar() instance (defined in initComponents()). 
 	private int sbMinSpeed = 1;
 	private int sbMaxSpeed = 100 + SB_VIS;
 	private int sbSpeed = SB_SPEED;
+	
+	// Defines <sbW> the mutable ScrollBar() width.
 	private int sbW;
+	
+	// Defines the <objW>, or mutable component width (default value is <INIT_SIZE>).
 	private int objW = INIT_SIZE;
-	private int delay = 16; // Change this to be a calculation based on "sbSpeed"
+	
+	// Defines delay, a default value transformed by the current value of <sbSpeed>.
+	private int delay = 16;
 
+	// Defines <Objc>, which serves as this Frame()'s implementation of a canvas (via an instance of a class that extends to Canvas()).
 	private Objc theObj;
 
 	private boolean isRunning = true;
-	private boolean isPaused = true;
-	private boolean hasTail = true;
-
-	private int winWidth;// Initial frame width.
-	private int winHeight;// Initial frame height.
+	private boolean isPaused  = true;
+	private boolean hasTail   = true;
+	
+	
+	// Defines temporary (lowercase) forms of the current screen size,
+	// - unlike the <final> definitions above, these are mutable. 
+	private int winWidth  = width;// Initial frame width.
+	private int winHeight = height;// Initial frame height.
 	private int winLeft;// Left side of the frame.
 	private int winTop;// Top of the frame.
 	private int screenWidth;// Width of the rendering area.
@@ -82,10 +182,11 @@ public class Bounce extends Frame
 	private Scrollbar sizeBar;
 	private Scrollbar speedBar;
 
-	public Bounce() {
+	public GUIBounce() {
 		setLayout(null);// Use a null frame layout.
 		setVisible(true);// Make the frame visible.
-		makeSheet();// Determines the sizes for the sheet.
+		makeSheet();
+		//makeSheet();// Determines the sizes for the sheet.
 		try {
 			initComponents();// Try to initialize the components.
 		} catch (Exception e) {
@@ -105,15 +206,15 @@ public class Bounce extends Frame
 
 	// Used to size the objects.
 	private void sizeScreen() {
-		startButton.setLocation(center - 2 * (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
-		shapeButton.setLocation(center - (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		startButton.setLocation(center - 2 * (buttonW + buttonWS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		shapeButton.setLocation(center - (buttonW + buttonWS) - buttonW / 2, screenHeight + buttonHS + insets.top);
 		tailButton.setLocation(center - buttonW / 2, screenHeight + buttonHS + insets.top);
-		clearButton.setLocation(center + (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
-		quitButton.setLocation(center + 2 * (buttonW + buttonS) - buttonW / 2, screenHeight + buttonHS + insets.top);
-		speedBar.setLocation(insets.left + buttonS, screenHeight + buttonHS + insets.top);
-		speedLabel.setLocation(insets.left + buttonS, screenHeight + buttonHS + BUTTON_H + insets.top);
-		sizeBar.setLocation(winWidth - sbW - insets.right - buttonS, screenHeight + buttonHS + insets.top);
-		sizeLabel.setLocation(winWidth - sbW - insets.right - buttonS, screenHeight + buttonHS + BUTTON_H + insets.top);
+		clearButton.setLocation(center + (buttonW + buttonWS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		quitButton.setLocation(center + 2 * (buttonW + buttonWS) - buttonW / 2, screenHeight + buttonHS + insets.top);
+		speedBar.setLocation(insets.left + buttonWS, screenHeight + buttonHS + insets.top);
+		speedLabel.setLocation(insets.left + buttonWS, screenHeight + buttonHS + BUTTON_H + insets.top);
+		sizeBar.setLocation(winWidth - sbW - insets.right - buttonWS, screenHeight + buttonHS + insets.top);
+		sizeLabel.setLocation(winWidth - sbW - insets.right - buttonWS, screenHeight + buttonHS + BUTTON_H + insets.top);
 
 		startButton.setSize(buttonW, BUTTON_H);
 		shapeButton.setSize(buttonW, BUTTON_H);
@@ -130,9 +231,11 @@ public class Bounce extends Frame
 
 	// Used to calculate new frame information and recalculation of the frame sizes.
 	public void makeSheet() {
+
 		insets = getInsets();
 		// The new screen width will be the window with minus the insets of left and
 		// right.
+		setSize(winWidth, winHeight);// Set the frame size.
 		screenWidth = winWidth - insets.left - insets.right;
 		// Calculating the screen height.
 		screenHeight = winHeight - insets.top - insets.bottom - 2 * (BUTTON_H + buttonHS);
@@ -140,7 +243,7 @@ public class Bounce extends Frame
 		center = screenWidth / 2;// Determines the center of the screen.
 		buttonW = screenWidth / 11;// Determine the width of the buttons.
 		sbW = buttonW * 2;
-		buttonS = buttonW / 4;// Determine the button spacing.
+		buttonWS = buttonW / 4;// Determine the button spacing.
 		this.setBackground(Color.lightGray);// Set the background color.
 	}
 
@@ -305,51 +408,26 @@ public class Bounce extends Frame
 	public void windowClosing(WindowEvent e) {
 		stop();
 	}
-
+	
+	// Below are overwritten (but unimplemented) methods of the Frame() superclass and it's listeners.
 	@Override
-	public void componentMoved(ComponentEvent e) {
-
-	}
-
+	public void componentMoved(ComponentEvent e)  {return;}
 	@Override
-	public void componentShown(ComponentEvent e) {
-
-	}
-
+	public void componentShown(ComponentEvent e)  {return;}
 	@Override
-	public void componentHidden(ComponentEvent e) {
-
-	}
-
+	public void componentHidden(ComponentEvent e) {return;}
 	@Override
-	public void windowOpened(WindowEvent e) {
-
-	}
-
+	public void windowOpened(WindowEvent e)       {return;}
 	@Override
-	public void windowClosed(WindowEvent e) {
-
-	}
-
+	public void windowClosed(WindowEvent e)       {return;}
 	@Override
-	public void windowIconified(WindowEvent e) {
-
-	}
-
+	public void windowIconified(WindowEvent e)    {return;}
 	@Override
-	public void windowDeiconified(WindowEvent e) {
-
-	}
-
+	public void windowDeiconified(WindowEvent e)  {return;}
 	@Override
-	public void windowActivated(WindowEvent e) {
-
-	}
-
+	public void windowActivated(WindowEvent e)    {return;}
 	@Override
-	public void windowDeactivated(WindowEvent e) {
-
-	}
+	public void windowDeactivated(WindowEvent e)  {return;}
 }
 
 class Objc extends Canvas {
@@ -373,8 +451,11 @@ class Objc extends Canvas {
 		size = objSize;
 		isRect = true;
 		clearFlag = false;
-		x = screenWidth / 2;
-		y = screenHeight / 2;
+		int tempX = (width/2);
+		int tempY = (height/2);
+
+		x = tempX;
+		y = tempY;
 		velocity = new Point(1, 1);
 		hasTail = true;
 		// checkOverlap();
@@ -412,7 +493,7 @@ class Objc extends Canvas {
 			clearFlag = false;
 			super.paint(g);
 			g.setColor(Color.red);
-			g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
+			g.drawRect(0, 0, screenWidth - 1, screenHeight - 2);
 		}
 
 		// Draws over the last draw of the Bounce Object
@@ -444,7 +525,6 @@ class Objc extends Canvas {
 	public void reSize(int screenWidth, int screenHeight) {
 		this.screenWidth = screenWidth;
 		this.screenHeight = screenHeight;
-
 		checkOverlap();
 		repaint();
 	}
