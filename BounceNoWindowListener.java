@@ -348,8 +348,6 @@ class Objc extends Canvas {
 		y = screenHeight / 2;
 		velocity = new Point(1, 1);
 		hasTail = true;
-		// checkOverlap();
-		repaint();
 	}
 
 	public void setTail(boolean hasTail) {
@@ -373,7 +371,7 @@ class Objc extends Canvas {
 		// Check for boundaries
 		if ((velocity.x > 0 && x + size / 2 > screenWidth - 4) || (velocity.x < 0 && x - size / 2 < 2))
 			velocity.x = -velocity.x;
-		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 3))
+		if ((velocity.y > 0 && y + size / 2 > screenHeight - 4) || (velocity.y < 0 && y - size / 2 < 2))
 			velocity.y = -velocity.y;
 	}
 
@@ -383,7 +381,7 @@ class Objc extends Canvas {
 			clearFlag = false;
 			super.paint(g);
 			g.setColor(Color.red);
-			g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
+			g.drawRect(0, 1, screenWidth - 1, screenHeight - 1);
 		}
 
 		// Draws over the last draw of the Bounce Object
@@ -435,9 +433,9 @@ class Objc extends Canvas {
 		if (y + size / 2 > screenHeight - 4) {
 			velocity.y = -1;
 			y = screenHeight - 3 - size / 2;
-		} else if (y - size / 2 < 3) {
+		} else if (y - size / 2 < 2) {
 			velocity.y = 1;
-			y = size / 2 + 2;
+			y = size / 2 + 1;
 		}
 	}
 
@@ -454,7 +452,7 @@ class Objc extends Canvas {
 	@Override
 	public void paint(Graphics g) {
 		g.setColor(Color.red);
-		g.drawRect(0, 1, screenWidth - 1, screenHeight - 2);
+		g.drawRect(0, 0, screenWidth - 1, screenHeight - 1);
 		update(g);
 	}
 }
