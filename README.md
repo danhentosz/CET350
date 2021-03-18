@@ -1,5 +1,5 @@
-# CET350Program3
+# CET350Program5 BouncingBall.java
 COMPILE:
-javac Bounce.java
+javac BouncingBall.java
 RUN:
-java Bounce
+java BouncingBall
