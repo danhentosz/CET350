@@ -363,7 +363,7 @@ Runnable {
 		Scrollbar sb = (Scrollbar) e.getSource();
 		
 		if (sb == speedBar) {
-			delay = sbMaxSpeed - speedBar.getValue() + 2;
+			delay = sbMaxSpeed + 5 - speedBar.getValue() + 10;
 		} else if (sb == sizeBar) {
 			// Checks if the size update was unsuccessful
 			if (!ball.tryUpdateSize(sizeBar.getValue())) {
@@ -497,12 +497,8 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 		
 		buffer = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_ARGB);
 		
-		
-		ball.x = screenWidth - ballSize;
-		ball.y = 0;
-		
-		// ball.x = (int)(Math.random() * (screenWidth - ballSize - 2)) + 1;
-		// ball.y = (int)(Math.random() * (screenHeight - ballSize - 2)) + 1;
+		ball.x = (int)(Math.random() * (screenWidth - ballSize - 2)) + 1;
+		ball.y = (int)(Math.random() * (screenHeight - ballSize - 2)) + 1;
 		ball.width = ballSize;
 		ball.height = ballSize;
 		this.addMouseListener(this);
@@ -561,11 +557,7 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 
 	// Updates the position of the object
 	public void updatePhysics() {
-		
-		Point collision_mask_1 = new Point(0, 0);
-		Point collision_mask_2 = new Point(0, 0);
-		Point collision_mask_3 = new Point(0, 0);
-		Point collision_mask_4 = new Point(0, 0);
+		Vector<Point> masks = new Vector<Point>();
 		
 		// Initalizes two counters, which are used to track X and Y velocity changes.
 		int jx = 0;
@@ -576,7 +568,7 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 		int new_y = ball.y + velocity_current.y;
 		
 		// Checks to see if the ball is going to exit the X bounds of the canvas.
-		if (new_x + ball.width >= screenWidth   || new_x <= 0)
+		if (new_x + ball.width >= screenWidth - 1 || new_x <= 0)
 		{
 			// If so, X velocity is reflected (and that change is reflected onto <new_x>).
 			velocity_current.x *= -1;
@@ -586,7 +578,7 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 		
 		
 		// Checks to see if the ball is going to exit the Y bounds of the canvas.
-		if (new_y + ball.height >= screenHeight || new_y <= 0)
+		if (new_y + ball.height >= screenHeight - 1 || new_y <= 0)
 		{
 			// If so, Y velocity is reflected (and that change is reflected onto <new_y>).
 			velocity_current.y *= -1;
@@ -594,40 +586,46 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 			jy++;
 		}
 		
-		// Check to see if the ball is going to collide with any member of <rects> on the X plane.
+		// Check to see if the ball is going to collide with any member of <rects> on the X and Y plane.
 		for (Rectangle rect : rects)
 		{
+			rect.grow(1, 1);
 			
-			if (rect.contains(new_x, new_y) || rect.contains(new_x + ball.width, new_y + ball.height))
+			if (
+			// Tries to see if the rectangle contains the ball.
+			rect.contains(new_x, new_y)                              ||
+			rect.contains(new_x + ball.width, new_y + ball.height)   ||
+			rect.contains(new_x + ball.width, new_y)                 ||
+			rect.contains(new_x, new_y + ball.height)                ||
+			
+			// Tries to see if the ball contains the rectangle. 
+			ball.contains(rect.x, rect.y)                            ||
+			ball.contains(rect.x + rect.width, rect.y + rect.height) ||
+			ball.contains(rect.x + rect.width, rect.x)               ||
+			ball.contains(rect.x, rect.y + rect.height))
 			{
-				collision_mask_1 = getCollisionDirection(new_x, new_y, rect.x, rect.y);
-				collision_mask_2 = getCollisionDirection(new_x + ball.width, new_y + ball.height, rect.x, rect.y);
-				collision_mask_3 = getCollisionDirection(new_x, new_y, rect.x + rect.width, rect.y + rect.height);
-				collision_mask_4 = getCollisionDirection(new_x + ball.width, new_y + ball.height, rect.x + rect.width, rect.y + rect.height);
-				
-				collision_mask_1.x *= collision_mask_2.x;
-				collision_mask_1.y *= collision_mask_2.y;
-				collision_mask_1.x *= collision_mask_3.x;
-				collision_mask_1.y *= collision_mask_3.y;
-				collision_mask_1.x *= collision_mask_4.x;
-				collision_mask_1.y *= collision_mask_4.y;
-				
-				velocity_current.x *= collision_mask_1.x;
-				velocity_current.y *= collision_mask_1.y;
+				masks.add(getCollisionDirection(new_x, new_y, rect.x, rect.y));
+				masks.add(getCollisionDirection(new_x + ball.width, new_y + ball.height, rect.x, rect.y));
+				masks.add(getCollisionDirection(new_x, new_y, rect.x + rect.width, rect.y + rect.height));
+				masks.add(getCollisionDirection(new_x + ball.width, new_y + ball.height, rect.x + rect.width, rect.y + rect.height));
+
+
+				// Applies the masks calculated above to the current velocity. 
+				for (Point mask : masks)
+				{
+					velocity_current.x *= mask.x;
+					velocity_current.y *= mask.y;
+				}
 				
 				jx ++;
 				jy ++;
 			};
+			
+			rect.grow(-1, -1);
 		};
-		
-		if (jx <= 1)
-			new_x = ball.x + velocity_current.x;
-			ball.x = new_x;
-		
-		if (jy <= 1)
-			new_y = ball.y + velocity_current.y;
-			ball.y = new_y;
-		
+	
+		ball.x = new_x;
+		ball.y = new_y;
 		
 		return;
 	}
@@ -770,8 +768,8 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 		// Drawing the ball
 		g.setColor(Color.lightGray);
 		g.fillOval((int)ball.getX(), (int)ball.getY(), (int)ball.getWidth(), (int)ball.getHeight());
-		g.setColor(Color.black);
-		g.drawOval((int)ball.getX(), (int)ball.getY(), (int)ball.getWidth(), (int)ball.getHeight());
+		g.setColor(Color.red);
+		g.drawRect((int)ball.getX(), (int)ball.getY(), (int)ball.getWidth(), (int)ball.getHeight());
 		
 		// Drawing the drag box
 		if (dragBoxActive) {
