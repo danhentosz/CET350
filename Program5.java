@@ -489,11 +489,8 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 		buffer = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_ARGB);
 		ball.x = (int)(Math.random() * (screenWidth - ballSize - 2)) + 1;
 		ball.y = (int)(Math.random() * (screenHeight - ballSize - 2)) + 1;
-		if (!tryUpdateSize(ballSize)) {
-			System.out.println("The random boundaries were not configured correctly!");
-			System.out.println("x was set to: " + ball.x);
-			System.out.println("y was set to: " + ball.y);
-		}
+		ball.width = ballSize;
+		ball.height = ballSize;
 		this.addMouseListener(this);
 		this.addMouseMotionListener(this);
 	}
