@@ -1,34 +1,33 @@
 /*
-.Program 5, G.U.I. BouncingBall Program     (BouncingBall.java).
+.Program5, Bouncing Ball II           (BouncingBall.java).
 .Created By:                                             .
 - Daniel Hentosz,    (HEN3883@calu.edu),                 .
 - Nathaniel Dehart   (DEH5850@calu.edu),                 .
 - Scott Trunzo       (TRU1931@calu.edu).                 .
-.Last Revised: March 28th, 2021.              (3/28/2021).
+.Last Revised: March 30th, 2021.              (3/30/2021).
 .Written for Technical Computing Using Java (CET-350-R01).
 Description:
 	Makes use of java's <awt> library to create a GUI,
 		- this GUI controls a object which will bounce around the frame.
 		
 	The user can:
-		- change the object to a circle or a square,
-		- Select a speed at which the object move's,
+		- Select a speed at which the object moves,
 		- change the size of the object,
-		- create windows with the mouse,
-		-and chose rather the object moves, or does not move.
+		- and chose rather the object moves, or does not move.
 	
-	For more implementation details, see the class header at GUIBounce().
+	For more implementation details, see the class header at GUIBounceII().
 		
 */
 
 // Packages the program into a folder called "Bounce",
-// When compiling this file via javac, intended command notation is "javac -d . BouncingBall.java",
-// - intended run notation is "java BouncingBall.Program5" (contains main() method of this file).
-package Bounce;
+// When compiling this file via javac, intended command notation is "javac -d . Program5.java",
+// - intended run notation is "java Bounce.Program5" (contains main() method of this file).
+package BouncingBall;
 
 
 // Imports components required for Frame(), Runnable(), and various action listeners. 
-// ...lang.Thread() is also imported.
+// ...lang.Thread() is also imported,
+// ...image.BufferedImage() also is imported, for use in Objc.
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
@@ -159,11 +158,11 @@ Runnable {
 	/*
 	The Bounce() constructor:
 		Description: 
-			- calls several sub-functions to initalize a Bounce() object. 
+			- calls several subfunctions to initalize a Bounce() object. 
 		Preconditions:
 			N/A.
 		Postconditions:
-			- Returns an initialize instance of Bounce(), which will be running it's main loop (see start() and run() for details).
+			- Returns an initalized instance of Bounce(), which will be running it's main loop (see start() and run() for details).
 	*/
 	public Bounce() {
 		setLayout(new BorderLayout());
@@ -188,7 +187,7 @@ Runnable {
 	/*
 	The makeSheet() method:
 		Description: 
-			- Calculates various mutable values used for component functionality and resizing. 
+			- Calculates various mutable values used for component functionalty and resizing. 
 		Preconditions:
 			- N/A.
 		Postconditions:
@@ -297,7 +296,7 @@ Runnable {
 		Description: 
 			- Serves as a destructor for GUIBounce(), and a terminator for it's internal loop (see run()).
 		Preconditions:
-			- Can only be called after initialization. 
+			- Can only be called after initalization. 
 		Postconditions:
 			- Frees memory taken up by GUIBounce()'s member variables and listeners, before returning.
 	*/
@@ -457,43 +456,55 @@ Runnable {
 	public void windowDeactivated(WindowEvent e)  {return;}
 }
 
+
+
+
+
+
+
 class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 	static final long serialVersionUID = 11L;
 	
-	private final int BOUNCE_SPEED = 2;
+	private final int BOUNCE_SPEED = 1;
 
 	private int screenWidth;
 	private int screenHeight;
 	
-	private Point velocity = new Point(BOUNCE_SPEED, BOUNCE_SPEED);
-	private Point leftoverVel = new Point();
-	private Point m1 = new Point();
-	private Point m2 = new Point();
 	
 	private Rectangle ball = new Rectangle();
 	private Rectangle dragBox = new Rectangle();
 	private float collisionPos;
+	private Point velocity_current    = new Point(BOUNCE_SPEED, BOUNCE_SPEED);
+	
+
+	
+
 	
 	private Vector<Rectangle> rects = new Vector<Rectangle>();
 	
 	private boolean dragBoxActive = false;
 	private boolean mouseActive = false;
+	private Point m1 = new Point();
+	private Point m2 = new Point();
 	
-	private Image buffer;
-	
-	private Graphics g;
+	// Defines components used for doublebuffering. 
+	private Image buffer; // - actual buffer image, <buffer>,
+	private Graphics g;   // - replacement graphical component, <g>.
 
 	Ballc(int ballSize, int screenWidth, int screenHeight) {
-		this.screenWidth = screenWidth;
+		this.screenWidth  = screenWidth;
 		this.screenHeight = screenHeight;
+		
 		buffer = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_ARGB);
-		ball.x = (int)(Math.random() * (screenWidth - ballSize - 2)) + 1;
-		ball.y = (int)(Math.random() * (screenHeight - ballSize - 2)) + 1;
-		if (!tryUpdateSize(ballSize)) {
-			System.out.println("The random boundaries were not configured correctly!");
-			System.out.println("x was set to: " + ball.x);
-			System.out.println("y was set to: " + ball.y);
-		}
+		
+		
+		ball.x = screenWidth - ballSize;
+		ball.y = 0;
+		
+		// ball.x = (int)(Math.random() * (screenWidth - ballSize - 2)) + 1;
+		// ball.y = (int)(Math.random() * (screenHeight - ballSize - 2)) + 1;
+		ball.width = ballSize;
+		ball.height = ballSize;
 		this.addMouseListener(this);
 		this.addMouseMotionListener(this);
 	}
@@ -550,129 +561,96 @@ class Ballc extends Canvas implements MouseListener, MouseMotionListener {
 
 	// Updates the position of the object
 	public void updatePhysics() {
-		leftoverVel.x = velocity.x;
-		leftoverVel.y = velocity.y;
 		
-		// Loops until it is done processing the movement
-		while (leftoverVel.x != 0 || leftoverVel.y != 0) {
-			
-			if (leftoverVel.x != 0 && Float.isFinite(collisionPos = getFirstHorizontalCollision(leftoverVel.x))) {
-				
-				if (leftoverVel.x > 0) { // moving right
-					leftoverVel.x -= (int)(collisionPos - (ball.getX() + ball.getWidth()));
-					ball.x = (int)(collisionPos - ball.getWidth()) - 1;
-					velocity.x = -BOUNCE_SPEED;
-				} else { // moving left
-					leftoverVel.x -= (int)(collisionPos - ball.getX());
-					ball.x = (int)collisionPos + 1;
-					velocity.x = BOUNCE_SPEED;
-				}
-				
-			} else { // Else checks for a perimeter overlap
-				if (ball.getX() + (ball.getWidth() / 2) * 2 + leftoverVel.x > screenWidth - 2) { // Checks the right boundary
-					// Subtracts the overlap amount from the velocity
-					leftoverVel.x = -(int)(leftoverVel.x - (ball.getX() + (ball.getWidth() / 2) * 2 + leftoverVel.x - (screenWidth - 2)));
-					// Places the ball's position at the edge of the object that it collided with
-					ball.x = screenWidth - 2 - (int)(ball.getWidth() / 2) * 2;
-					velocity.x = -BOUNCE_SPEED;
-				} else if (ball.getX() + leftoverVel.x < 1) { // Checks the left boundary
-					// Subtracts the overlap amount from the velocity
-					leftoverVel.x = -(int)(leftoverVel.x + (1 - (ball.getX() + leftoverVel.x)));
-					// Places the ball's position at the edge of the object that it collided with
-					ball.x = 1;
-					velocity.x = BOUNCE_SPEED;
-				} else {
-					ball.x += leftoverVel.x;
-					leftoverVel.x = 0;
-				}
-			}
-			
-			if (leftoverVel.y != 0 && Float.isFinite(collisionPos = getFirstVerticalCollision(leftoverVel.y))) {
-				
-				if (leftoverVel.y > 0) { // moving down
-					leftoverVel.y -= (int)(collisionPos - (ball.getY() + ball.getHeight()));
-					ball.y = (int)(collisionPos - ball.getHeight()) - 1;
-					velocity.y = -BOUNCE_SPEED;
-				} else { // moving up
-					leftoverVel.y -= (int)(collisionPos - ball.getY());
-					ball.y = (int)collisionPos + 1;
-					velocity.y = BOUNCE_SPEED;
-				}
-				
-			} else { // Else checks for a perimeter overlap
-				if (ball.getY() + (ball.getHeight() / 2) * 2 + leftoverVel.y > screenHeight - 2) { // Checks the bottom boundary
-					// Subtracts the overlap amount from the velocity
-					leftoverVel.y = -(int)(leftoverVel.y - (ball.getY() + (ball.getHeight() / 2) * 2 + leftoverVel.y - (screenHeight - 2)));
-					// Places the ball's position at the edge of the object that it collided with
-					ball.y = screenHeight - 2 - (int)(ball.getHeight() / 2) * 2;
-					velocity.y = -BOUNCE_SPEED;
-				} else if (ball.getY() + leftoverVel.y < 1) { // Checks the top boundary
-					// Subtracts the overlap amount from the velocity
-					leftoverVel.y = -(int)(leftoverVel.y + (1 - (ball.getY() + leftoverVel.y)));
-					// Places the ball's position at the edge of the object that it collided with
-					ball.y = 1;
-					velocity.y = BOUNCE_SPEED;
-				} else {
-					ball.y += leftoverVel.y;
-					leftoverVel.y = 0;
-				}
-			}
+		Point collision_mask_1 = new Point(0, 0);
+		Point collision_mask_2 = new Point(0, 0);
+		Point collision_mask_3 = new Point(0, 0);
+		Point collision_mask_4 = new Point(0, 0);
+		
+		// Initalizes two counters, which are used to track X and Y velocity changes.
+		int jx = 0;
+		int jy = 0;
+		
+		// Initalizes two dummied values, which are used to represent <ball>'s position on the next frame.
+		int new_x = ball.x + velocity_current.x;
+		int new_y = ball.y + velocity_current.y;
+		
+		// Checks to see if the ball is going to exit the X bounds of the canvas.
+		if (new_x + ball.width >= screenWidth   || new_x <= 0)
+		{
+			// If so, X velocity is reflected (and that change is reflected onto <new_x>).
+			velocity_current.x *= -1;
+			new_x += velocity_current.x;
+			jx++;
 		}
+		
+		
+		// Checks to see if the ball is going to exit the Y bounds of the canvas.
+		if (new_y + ball.height >= screenHeight || new_y <= 0)
+		{
+			// If so, Y velocity is reflected (and that change is reflected onto <new_y>).
+			velocity_current.y *= -1;
+			new_y += velocity_current.y;
+			jy++;
+		}
+		
+		// Check to see if the ball is going to collide with any member of <rects> on the X plane.
+		for (Rectangle rect : rects)
+		{
+			
+			if (rect.contains(new_x, new_y) || rect.contains(new_x + ball.width, new_y + ball.height))
+			{
+				collision_mask_1 = getCollisionDirection(new_x, new_y, rect.x, rect.y);
+				collision_mask_2 = getCollisionDirection(new_x + ball.width, new_y + ball.height, rect.x, rect.y);
+				collision_mask_3 = getCollisionDirection(new_x, new_y, rect.x + rect.width, rect.y + rect.height);
+				collision_mask_4 = getCollisionDirection(new_x + ball.width, new_y + ball.height, rect.x + rect.width, rect.y + rect.height);
+				
+				collision_mask_1.x *= collision_mask_2.x;
+				collision_mask_1.y *= collision_mask_2.y;
+				collision_mask_1.x *= collision_mask_3.x;
+				collision_mask_1.y *= collision_mask_3.y;
+				collision_mask_1.x *= collision_mask_4.x;
+				collision_mask_1.y *= collision_mask_4.y;
+				
+				velocity_current.x *= collision_mask_1.x;
+				velocity_current.y *= collision_mask_1.y;
+				
+				jx ++;
+				jy ++;
+			};
+		};
+		
+		if (jx <= 1)
+			new_x = ball.x + velocity_current.x;
+			ball.x = new_x;
+		
+		if (jy <= 1)
+			new_y = ball.y + velocity_current.y;
+			ball.y = new_y;
+		
+		
+		return;
 	}
 	
-	private synchronized float getFirstHorizontalCollision(int horVel) {
-		float closestBoundPosition = Float.POSITIVE_INFINITY;
-		for (Rectangle rect : rects) {
-			// Checks if the next rect is closer or not to the ball than the other detected collision
-			if (Math.abs(rect.getX() - ball.getX()) >= Math.abs(closestBoundPosition))
-				continue;
-			if (horVel > 0) { // The ball is moving right
-				if (rect.getX() > ball.getX()) {
-					if (ball.getY() < rect.getY() + rect.getHeight() && ball.getY() + (ball.getHeight() / 2) * 2 > rect.getY()) {
-						if (ball.getX() + ball.getWidth() + horVel > rect.getX()) { // Collision
-							closestBoundPosition = (float)rect.getX();
-						}
-					}
-				}
-			} else { // The ball is moving left
-				if (rect.getX() < ball.getX()) {
-					if (ball.getY() < rect.getY() + rect.getHeight() && ball.getY() + (ball.getHeight() / 2) * 2 > rect.getY()) {
-						if (ball.getX() + horVel < rect.getX() + rect.getWidth()) { // Collision
-							closestBoundPosition = (float)(rect.getX() + rect.getWidth());
-						}
-					}
-				}
-			}
-		}
-		return closestBoundPosition;
-	}
 	
-	// Change this loop to walk through the elements in a way that wouldn't disturb the collisions if a rectangle is removed while performing collision detection
-	private synchronized float getFirstVerticalCollision(int verVel) {
-		float closestBoundPosition = Float.POSITIVE_INFINITY;
-		for (Rectangle rect : rects) {
-			// Checks if the next rect is closer or not to the ball than the other detected collision
-			if (Math.abs(rect.getY() - ball.getY()) >= Math.abs(closestBoundPosition))
-				continue;
-			if (verVel > 0) { // The ball is moving down
-				if (rect.getY() > ball.getY()) {
-					if (ball.getX() < rect.getX() + rect.getWidth() && ball.getX() + (ball.getWidth() / 2) * 2 > rect.getX()) {
-						if (ball.getY() + ball.getHeight() + verVel > rect.getY()) { // Collision
-							closestBoundPosition = (float)rect.getY();
-						}
-					}
-				}
-			} else { // The ball is moving up
-				if (rect.getY() < ball.getY()) {
-					if (ball.getX() < rect.getX() + rect.getWidth() && ball.getX() + (ball.getWidth() / 2) * 2 > rect.getX()) {
-						if (ball.getY() + verVel < rect.getY() + rect.getHeight()) { // Collision
-							closestBoundPosition = (float)(rect.getY() + rect.getHeight());
-						}
-					}
-				}
-			}
-		}
-		return closestBoundPosition;
+	private Point getCollisionDirection(int cx, int cy, int tx, int ty)
+	{
+		Point value = new Point(0, 0);
+		
+		Point collision = new Point(cx, cy);
+		Point target    = new Point(tx, ty);
+		
+		if(collision.x <= target.x)
+			value.x = -1;
+		else
+			value.x = 1;
+		
+		if(collision.y <= target.y)
+			value.y = 1;
+		else
+			value.y = -1;
+		
+		return value;
 	}
 	
 	// Returns true if the boundaries are successfully resized else there was a boundary violation
