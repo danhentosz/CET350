@@ -1,5 +1,5 @@
 /*
-.Program5, Bouncing Ball II           (BouncingBall.java).
+.Program5, Bounce Program's Revenge   (BouncingBall.java).
 .Created By:                                             .
 - Daniel Hentosz,    (HEN3883@calu.edu),                 .
 - Nathaniel Dehart   (DEH5850@calu.edu),                 .
@@ -18,8 +18,8 @@ Description:
 		- change the size and speed of a ball that is prominently displayed on the canvas panel.
 		
 	Alternatively, by clicking on the canvas panel, the user can:
-		- hold mouse button 1 (left click), and drag to create a rectangle,
-			+ upon releasing left click, the rectangle is added to the screen,
+		- hold a mouse and drag to create a rectangle,
+			+ upon releasing that mouse button, the rectangle is added to the screen,
 				* the ball bouncing around within the canvas panel will ricochet off of this rectangle,
 				* if the rectangle contained any other, smaller rectangles entirely, they will be deleted,
 		- click the mouse once on a rectangle to delete it from the canvas.
@@ -29,9 +29,9 @@ Description:
 		
 */
 
-// Packages the program into a folder called "Bounce",
-// When compiling this file via javac, intended command notation is "javac -d . Program5.java",
-// - intended run notation is "java Bounce.Program5" (contains main() method of this file).
+// Packages the program into a folder called "BouncingBall",
+// When compiling this file via javac, intended command notation is "javac -d . BouncingBall.java",
+// - intended run notation is "java BouncingBall.BouncingBall" (contains main() method of this file).
 package BouncingBall;
 
 // Imports components required for Frame(), Runnable(), and various action listeners. 
@@ -705,7 +705,18 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 
 
 
-
+	/*
+	The Ball() method:
+		Description: 
+			- Initalizes a new instance of Ball(), with various starting values.
+		Preconditions:
+			- the constructor (Ball()) has already been ran,
+			<ballSize>     : must be a valid integer value, (<ball>'s initial size)
+			<screenWidth>  : must be a valid integer value, (screen's width)
+			<screenHeight> : must be a valid integer value. (screen's height)
+		Postconditions:
+			- Returns an initalized instance of Ball() (with relevant, appended listeners).
+	*/
 	Ball(int ballSize, int screenWidth, int screenHeight)
 	{
 		
