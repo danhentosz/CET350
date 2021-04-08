@@ -395,8 +395,8 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		
 		// Initalizes each control button (with proper labels)
 		menuControl = new Menu("Controls");
-		//Run         = menuControl.add(new MenuItem("Run", new MenuShortcut(KeyEvent, VK_R)));
-		//Pause       = menuControl.add(new MenuItem("Pause", new MenuShortcut(KeyEvent, VK_P)));
+		Run         = menuControl.add(new MenuItem("Run", new MenuShortcut(KeyEvent.VK_R)));
+		Pause       = menuControl.add(new MenuItem("Pause", new MenuShortcut(KeyEvent.VK_P)));
 		Reset       = menuControl.add(new MenuItem("Reset"));
 		Quit        = menuControl.add(new MenuItem("Quit"));
 		menuBar.add(menuControl);
@@ -513,8 +513,8 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		velocityBar.addAdjustmentListener(this);
 		angleBar.addAdjustmentListener(this);
 		
-		//Run.addActionListener(this);	
-		//Pause.addActionListener(this);
+		Run.addActionListener(this);	
+		Pause.addActionListener(this);
 		Reset.addActionListener(this);
 		Quit.addActionListener(this);
 		
