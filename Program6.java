@@ -792,19 +792,22 @@ class PhysicsObject
 	
 	private boolean isStatic = false;
 	
-	public PhysicsObject(Rectangle collider, int horVel, int verVel) {
+	public PhysicsObject(Rectangle collider, int horVel, int verVel, boolean isStatic) {
 		this.collider = collider;
 		setVelocityX(horVel);
 		setVelocityY(verVel);
+		this.isStatic = isStatic;
 	}
-	public PhysicsObject(Rectangle collider) {
+	public PhysicsObject(Rectangle collider, boolean isStatic) {
 		this.collider = collider;
-		if (velocity.getX() == 0 && velocity.getY() == 0) {
-			isStatic = true;
-		}
+		this.isStatic = isStatic;
 	}
-	public PhysicsObject() {
+	public PhysicsObject(boolean isStatic) {
 		collider = new Rectangle();
+		this.isStatic = isStatic;
+	}
+	public void setStatic(boolean isStatic) {
+		this.isStatic = isStatic;
 	}
 	public final Rectangle getCollider() {
 		return collider;
@@ -823,27 +826,9 @@ class PhysicsObject
 	}
 	public void setVelocityX(int x) {
 		velocity.x = x;
-		if (isStatic) {
-			if (x != 0) {
-				isStatic = false;
-			}
-		} else {
-			if (velocity.getX() == 0 && velocity.getY() == 0) {
-				isStatic = true;
-			}
-		}
 	}
-	public void setVelocityY(int y) {
-		velocity.y = y;
-		if (isStatic) {
-			if (y != 0) {
-				isStatic = false;
-			}
-		} else {
-			if (velocity.getX() == 0 && velocity.getY() == 0) {
-				isStatic = true;
-			}
-		}
+	public void setVelocityY(float y) {
+		velocity.setLocation(velocity.getX(), y);
 	}
 	public final Point getVelocity() {
 		return velocity;
@@ -854,10 +839,10 @@ class PhysicsObject
 	public void setLocationY(int verPos) {
 		collider.y = verPos;
 	}
-	public void addLocationX(int value) {
+	public void addLocationX(float value) {
 		collider.x += value;
 	}
-	public void addLocationY(int value) {
+	public void addLocationY(float value) {
 		collider.y += value;
 	}
 	public void setWidth(int width) {
@@ -872,9 +857,11 @@ class PhysicsObject
 	public void setHorCollision(PhysicsObject collision) {
 		lastHorCollision = collision;
 	}
+	// Returns null if there was no collision
 	public PhysicsObject getLastHorCollision() {
 		return lastHorCollision;
 	}
+	// Returns null if there was no collision
 	public void setVerCollision(PhysicsObject collision) {
 		lastVerCollision = collision;
 	}
@@ -961,6 +948,7 @@ class PhysicsLayer
 							(movingObj.getX() + movingObj.getWidth() + movingObj.getVelocity().getX() >= other.getX())) {
 							
 							movingObj.setHorCollision(other);
+							other.setHorCollision(movingObj);
 							movingObj.setLocationX((int)(other.getX() - movingObj.getWidth()));
 						}
 					}
@@ -986,6 +974,7 @@ class PhysicsLayer
 							(movingObj.getX() + movingObj.getVelocity().getX() <= other.getX() + other.getWidth())) {
 							
 							movingObj.setHorCollision(other);
+							other.setHorCollision(other);
 							movingObj.setLocationX((int)(other.getX() + other.getWidth()));
 						}
 					}
@@ -1032,6 +1021,7 @@ class PhysicsLayer
 							(movingObj.getY() + movingObj.getHeight() + movingObj.getVelocity().getY() >= other.getY())) {
 						
 							movingObj.setVerCollision(other);
+							other.setVerCollision(movingObj);
 							movingObj.setLocationY((int)(other.getY() - movingObj.getHeight()));
 						}
 					}
@@ -1057,6 +1047,7 @@ class PhysicsLayer
 							(movingObj.getY() + movingObj.getVelocity().getY() <= other.getY() + other.getHeight())) {
 						
 							movingObj.setVerCollision(other);
+							other.setVerCollision(movingObj);
 							movingObj.setLocationY((int)(other.getY() + other.getHeight()));
 						}
 					}
@@ -1108,12 +1099,12 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private Point m2 = new Point();
 	
 	// Defines the bounding box that represents this class's primary vector shape, <ball>.
-	private PhysicsObject ball = new PhysicsObject();
+	private PhysicsObject ball = new PhysicsObject(false);
 	
-	private PhysicsObject southBound = new PhysicsObject();
-	private PhysicsObject northBound = new PhysicsObject();
-	private PhysicsObject westBound = new PhysicsObject();
-	private PhysicsObject eastBound = new PhysicsObject();
+	private PhysicsObject southBound = new PhysicsObject(true);
+	private PhysicsObject northBound = new PhysicsObject(true);
+	private PhysicsObject westBound = new PhysicsObject(true);
+	private PhysicsObject eastBound = new PhysicsObject(true);
 	
 	// Defines the rectangle used to represent the area the mouse is currently drug over (values from this rect can also become a solid rectangle).
 	private Rectangle dragBox = new Rectangle();
@@ -1283,7 +1274,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 					}
 					
 					// Afterward, adds the dragbox to <rects>.
-					rects.add(new PhysicsObject(new Rectangle(dragBox)));
+					rects.add(new PhysicsObject(new Rectangle(dragBox), true));
 					boxLayer.addPhysicsObject(rects.lastElement());
 				}
 			}
