@@ -202,9 +202,12 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	private final int MIN_SIZE = 10;
 
 	private int size = INIT_SIZE;
+	
+	private final int SB_ANGLE_MIN = 90;
+	private final int SB_ANGLE_MAX = 180;
 
 	// Defines <SB_ANGLE>, the starting value of the ScrollBar("Angle").
-	private final int SB_ANGLE = 50;
+	private final int SB_ANGLE = (SB_ANGLE_MAX + SB_ANGLE_MIN) / 2;
 
 	// Defines <SB_VELOCITY>, the starting value of the ScrollBar("Velocity").
 	private final int SB_VELOCITY = 50;
@@ -230,12 +233,6 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 
 	// Defines delay, a default value transformed by the current value of <sbSpeed>.
 	private int delay = 16;
-
-	// Defines the minimum, maximum, and current speed values which can be held by a
-	// ScrollBar() instance (defined in initComponents()).
-	private int sbMinAngle = 0;
-	private int sbMaxAngle = 90 + SB_VIS;
-	private int sbAngle    = SB_ANGLE;
 
 
 	// Defines the minimum, maximum, and current speed values which can be held by a
@@ -467,9 +464,9 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Sets the constant value(s) associated with the size scrollBar(),
 		// - also changes the background color of this component to gray.
 		angleBar = new Scrollbar(Scrollbar.HORIZONTAL);
-		angleBar.setMaximum(sbMaxAngle + SB_VIS);
-		angleBar.setMinimum(sbMinAngle);
-		angleBar.setValue(sbAngle);
+		angleBar.setMaximum(SB_ANGLE_MAX + SB_VIS);
+		angleBar.setMinimum(SB_ANGLE_MIN);
+		angleBar.setValue(SB_ANGLE);
 		angleBar.setBackground(Color.gray);
 
 
@@ -554,6 +551,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Finally initalizes <ball>, since the screen is populated enough for it to safely be instantiated. 
 		ball = new Ball(size, ball_panel.getWidth(), ball_panel.getHeight());
 		ball_panel.add("Center", ball);
+		ball.setCannonAngle(SB_ANGLE);
 
 		// Validates the Frame() again, before returning.
 		BulletFrame.validate();
@@ -689,7 +687,10 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		
 		// Stores the current Scrollbar() being changed via getSource().
 		Scrollbar sb = (Scrollbar) e.getSource();
-
+		
+		if (sb == angleBar) {
+			ball.setCannonAngle(sb.getValue());
+		}
 
 		// Returns, ending the function.
 		return;
@@ -1085,6 +1086,14 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	// - this variable is FINAL, and cannot be changed.
 	static final long serialVersionUID = 11L;
 	
+	private final int CANNON_PIVOT_SIZE = 40;
+	
+	private final int CANNON_WIDTH = 20;
+	private final int CANNON_LENGTH = 80;
+	
+	// Distance between the cannon's pivot and the edge of the screen
+	private final int CANNON_SPACING = 10;
+	
 	private final int BOUND_WIDTH = 10;
 	
 	// Defines <BOUNCE_SPEED>, which is the internal stepping value for the primary vector object inside of Ball().
@@ -1116,7 +1125,6 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	// Defines a Vector which stores all collision rectangles currently instantiated onto Ball().
 	private Vector<PhysicsObject> rects = new Vector<PhysicsObject>();
 	
-	
 	// Defines two toggle-booleans, which control whether or not the mouse is currently active, and whether or not it is affecting <dragBox>.
 	private boolean dragBoxActive = false;
 	private boolean mouseActive = false;
@@ -1125,7 +1133,11 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private Image buffer; // - actual buffer image, <buffer>,
 	private Graphics g;   // - replacement graphical component, <g>.
 
+	private Polygon cannon = new Polygon();
 	
+	private Rectangle cannonPivot = new Rectangle(0, 0, CANNON_PIVOT_SIZE, CANNON_PIVOT_SIZE);
+	
+	private int cannonAngle = 0;
 
 	/*
 	The Ball() method:
@@ -1282,6 +1294,52 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		
 		// Returns, ending the function.
 		return;
+	}
+	
+	
+	/*
+	The updateCannon() method:
+		Description: 
+			- Updates the position of the cannon relative to the screen dimensions 
+			  + sets up the polygon that represents the cannon
+	*/
+	private void updateCannon() {
+		cannonPivot.x = screenWidth - CANNON_SPACING - CANNON_PIVOT_SIZE / 2;
+		cannonPivot.y = screenHeight - CANNON_SPACING - CANNON_PIVOT_SIZE / 2;
+		
+		cannon.reset();
+		
+		double radAngle = cannonAngle * (float)Math.PI / 180;
+		double horValue = Math.cos(radAngle);
+		double verValue = Math.sin(radAngle);
+		
+		int cannonEndX = (int)(cannonPivot.getX() + horValue * CANNON_LENGTH);
+		int cannonEndY = (int)(cannonPivot.getY() - verValue * CANNON_LENGTH);
+		
+		// Adds the lower left point (when angled towards the upper left quadrant)
+		cannon.addPoint((int)(cannonPivot.getX() + Math.round(verValue * -CANNON_WIDTH / 2)), (int)(cannonPivot.getY() + Math.round(horValue * -CANNON_WIDTH / 2)));
+		// Adds the upper left point
+		cannon.addPoint((int)(cannonEndX + Math.round(verValue * -CANNON_WIDTH / 2)), (int)(cannonEndY + Math.round(horValue * -CANNON_WIDTH / 2)));
+		// Adds the upper right point
+		cannon.addPoint((int)(cannonEndX + Math.round(verValue * CANNON_WIDTH / 2)), (int)(cannonEndY + Math.round(horValue * CANNON_WIDTH / 2)));
+		//Adds the lower right point
+		cannon.addPoint((int)(cannonPivot.getX() + Math.round(verValue * CANNON_WIDTH / 2)), (int)(cannonPivot.getY() + Math.round(horValue * CANNON_WIDTH / 2)));
+	
+		cannonPivot.x -= CANNON_PIVOT_SIZE / 2;
+		cannonPivot.y -= CANNON_PIVOT_SIZE / 2;
+	}
+	
+	
+	/*
+	The setCannonAngle() method:
+	 
+	*/
+	public void setCannonAngle(int angle) {
+		
+		System.out.println("angle is: " + angle);
+		cannonAngle = angle;
+		updateCannon();
+		repaint();
 	}
 
 
@@ -1596,6 +1654,13 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		g.fillOval((int) ball.getX(), (int) ball.getY(), (int) ball.getWidth(), (int) ball.getHeight());
 		g.setColor(Color.black);
 		g.drawOval((int) ball.getX(), (int) ball.getY(), (int) ball.getWidth(), (int) ball.getHeight());
+		
+		g.setColor(Color.blue);
+		g.fillPolygon(cannon);
+		
+		g.setColor(Color.black);
+		//g.drawRect((int) cannonPivot.getX(), (int) cannonPivot.getY(), (int) cannonPivot.getWidth(), (int) cannonPivot.getHeight());
+		g.fillOval((int) cannonPivot.getX(), (int) cannonPivot.getY(), (int) cannonPivot.getWidth(), (int) cannonPivot.getHeight());
 
 		// Draws the dragbox onto the screen (if <dragBoxActive>).
 		if (dragBoxActive)
