@@ -265,12 +265,19 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	// Defines two instances of Label(), which indicate which scrollbar is for Ball Speed, and which is for Ball Size.
 	private Label velocityLabel = new Label("Velocity", Label.CENTER);
 	private Label angleLabel  = new Label("Angle", Label.CENTER);
+	
+	private Label ballLabel = new Label  ("Ball Score  ");
+	private Label cannonLabel = new Label("Player Score");
 
 	// Defines two scrollbars (which allow the user to change the size and speed of the Ball within Ball()).
 	private Scrollbar velocityBar;
 	private Scrollbar angleBar;
 
-
+	private TextField ballScoreField = new TextField("0");
+	private TextField cannonScoreField = new TextField("0");
+	
+	private int ballScore = 0;
+	private int cannonScore = 0;
 
 	public BulletBounce()
 	{
@@ -467,6 +474,13 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		angleBar.setMinimum(SB_ANGLE_MIN);
 		angleBar.setValue(SB_ANGLE);
 		angleBar.setBackground(Color.gray);
+		
+		
+		ballScoreField.setEnabled(false);
+		cannonScoreField.setEnabled(false);
+		
+		ballLabel.setBackground(Color.lightGray);
+		cannonLabel.setBackground(Color.lightGray);
 
 
 		// Initalizes <gbl> and <gbc>, which are used together to constrain components within GUIBounceII().
@@ -504,6 +518,10 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		addToControlPanel(velocityLabel, 1,1,3,1);
 		addToControlPanel(angleBar,   12,0,3,1);
 		addToControlPanel(angleLabel, 12,1,3,1);
+		addToControlPanel(ballScoreField, 5,0,1,1);
+		addToControlPanel(ballLabel,      5,1,1,1);
+		addToControlPanel(cannonScoreField, 10,0,1,1);
+		addToControlPanel(cannonLabel,      10,1,1,1);
 		
 		// Adds components to their relevant listeners.
 		velocityBar.addAdjustmentListener(this);
@@ -549,7 +567,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Finally initalizes <ball>, since the screen is populated enough for it to safely be instantiated. 
 		ball = new Ball(size, ball_panel.getWidth(), ball_panel.getHeight());
 		ball_panel.add("Center", ball);
-		ball.setCannonAngle(SB_ANGLE);
+		ball.setCannonAngle(SB_ANGLE_MAX - SB_ANGLE + SB_ANGLE_MIN);
 
 		// Validates the Frame() again, before returning.
 		BulletFrame.validate();
@@ -786,7 +804,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		Scrollbar sb = (Scrollbar) e.getSource();
 		
 		if (sb == angleBar) {
-			ball.setCannonAngle(sb.getValue());
+			ball.setCannonAngle(SB_ANGLE_MAX - sb.getValue() + SB_ANGLE_MIN);
 		}
 
 		// Returns, ending the function.
@@ -1078,8 +1096,6 @@ class PhysicsLayer
 				{					
 					if (movingObj != other)
 					{
-						other.incWidth();
-						other.incHeight();
 						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
 						// If so, the <rect> of this iteration's X value becomes the new <closesetBoundPosition>.
 						if(
@@ -1090,10 +1106,8 @@ class PhysicsLayer
 							
 							movingObj.setHorCollision(other);
 							other.setHorCollision(movingObj);
-							movingObj.setLocationX((int)(other.getX() - movingObj.getWidth()));
+							movingObj.setLocationX((int)(other.getX() - movingObj.getWidth() - 1));
 						}
-						other.decWidth();
-						other.decHeight();
 					}
 				}
 			}
@@ -1110,8 +1124,6 @@ class PhysicsLayer
 					
 					if (movingObj != other)
 					{
-						other.incWidth();
-						other.incHeight();
 						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
 						// If so, the <rect> of this iteration's X value becomes the new <closesetBoundPosition>.
 						if(
@@ -1122,10 +1134,8 @@ class PhysicsLayer
 							
 							movingObj.setHorCollision(other);
 							other.setHorCollision(other);
-							movingObj.setLocationX((int)(other.getX() + other.getWidth()));
+							movingObj.setLocationX((int)(other.getX() + other.getWidth() + 1));
 						}
-						other.decWidth();
-						other.decHeight();
 					}
 					
 
@@ -1163,8 +1173,6 @@ class PhysicsLayer
 				{
 					if (movingObj != other)
 					{
-						other.incWidth();
-						other.incHeight();
 						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
 						// If so, the <rect> of this iteration's Y value becomes the new <closesetBoundPosition>.
 						if(
@@ -1175,10 +1183,8 @@ class PhysicsLayer
 						
 							movingObj.setVerCollision(other);
 							other.setVerCollision(movingObj);
-							movingObj.setLocationY((int)(other.getY() - movingObj.getHeight()));
+							movingObj.setLocationY((int)(other.getY() - movingObj.getHeight() - 1));
 						}
-						other.decWidth();
-						other.decHeight();
 					}
 				}
 			}
@@ -1193,8 +1199,6 @@ class PhysicsLayer
 				{
 					if (movingObj != other)
 					{
-						other.incWidth();
-						other.incHeight();
 						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
 						// If so, the <rect> of this iteration's Y value becomes the new <closesetBoundPosition>.
 						if(
@@ -1205,10 +1209,8 @@ class PhysicsLayer
 						
 							movingObj.setVerCollision(other);
 							other.setVerCollision(movingObj);
-							movingObj.setLocationY((int)(other.getY() + other.getHeight()));
+							movingObj.setLocationY((int)(other.getY() + other.getHeight() + 1));
 						}
-						other.decWidth();
-						other.decHeight();
 					}
 				}
 			}
@@ -1257,19 +1259,20 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	// Defines <BOUNCE_SPEED>, which is the internal stepping value for the primary vector object inside of Ball().
 	private final int BOUNCE_SPEED = 1;
 
+	
+	private final float PIXELS_PER_METER = 1.0f; // Find a good value once the projectile is implemented
 
 
-
-	private final int MERCURY    = 1;
-	private final int VENUS      = 1;
-	private final int EARTH      = 1;
-	private final int EARTHSMOON = 1;
-	private final int MARS       = 1;
-	private final int JUPITER    = 1;
-	private final int SATURN     = 1;
-	private final int URANUS     = 1;
-	private final int NEPTUNE    = 1;
-	private final int PLUTO      = 1;
+	private final float MERCURY    = 3.70f 	* PIXELS_PER_METER;
+	private final float VENUS      = 8.87f 	* PIXELS_PER_METER;
+	private final float EARTH      = 9.81f 	* PIXELS_PER_METER;
+	private final float EARTHSMOON = 1.62f 	* PIXELS_PER_METER;
+	private final float MARS       = 3.72f 	* PIXELS_PER_METER;
+	private final float JUPITER    = 24.79f * PIXELS_PER_METER;
+	private final float SATURN     = 10.44f * PIXELS_PER_METER;
+	private final float URANUS     = 8.87f 	* PIXELS_PER_METER;
+	private final float NEPTUNE    = 11.15f * PIXELS_PER_METER;
+	private final float PLUTO      = 0.62f 	* PIXELS_PER_METER;
 
 
 	// Defines mutable integers that hold the current screen width and screen height.
@@ -1527,7 +1530,6 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	*/
 	public void setCannonAngle(int angle) {
 		
-		System.out.println("angle is: " + angle);
 		cannonAngle = angle;
 		updateCannon();
 		repaint();
