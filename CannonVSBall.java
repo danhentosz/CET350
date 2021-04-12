@@ -101,7 +101,7 @@ Add a check that ensures only left clicks are able to insert/delete rectangles, 
 // Packages the program into a folder called "CannonVSBall",
 // When compiling this file via javac, intended command notation is "javac -d . CannonVSBall.java",
 // - intended run notation is "java CannonVSBall.CannonVSBall" (contains main() method of this file).
-package BouncingBall;
+package CannonVSBall;
 
 
 
@@ -130,7 +130,7 @@ The CannonVSBall() Class:
 	Postconditions:
 		- Constructor returns an instance of BulletBounce().
 */
-public class BouncingBall {
+public class CannonVSBall {
 	
 	
 	/*
@@ -429,7 +429,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		earthsMoon      = new CheckboxMenuItem("Earth's Moon");
 		menuEnvironment.add(earthsMoon);
 		mars            = new CheckboxMenuItem("Mars");
-		 menuEnvironment.add(mars);
+		menuEnvironment.add(mars);
 		jupiter         = new CheckboxMenuItem("Jupiter");
 		menuEnvironment.add(jupiter);
 		saturn          = new CheckboxMenuItem("Saturn");
@@ -573,6 +573,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		ball = new Ball(size, ball_panel.getWidth(), ball_panel.getHeight());
 		ball_panel.add("Center", ball);
 		ball.setCannonAngle(SB_ANGLE_MAX - SB_ANGLE + SB_ANGLE_MIN);
+		ball.setGrav(ball.gravRule("Earth"));
 
 		// Validates the Frame() again, before returning.
 		BulletFrame.validate();
@@ -690,7 +691,8 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 			
 			// Sleeps for <delay>, which serves as an interpretation of the current <ball> speed.
 			if (!isPaused) {
-				ball.updatePhysics();
+				ball.updateProjectile();
+				ball.updateBall();
 				ball.repaint();
 				try {
 					Thread.sleep(delay);
@@ -921,99 +923,105 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 
 class PhysicsObject
 {
-	private Point velocity = new Point();
+	private float velocityX = 0;
+	private float velocityY = 0;
 	
-	private Rectangle collider;
+	private float posX = 0;
+	private float posY = 0;
+	private float width = 0;
+	private float height = 0;
 	
 	private PhysicsObject lastHorCollision = null;
 	private PhysicsObject lastVerCollision = null;
 	
 	private boolean isStatic = false;
 	
-	public PhysicsObject(Rectangle collider, int horVel, int verVel, boolean isStatic)
-	{
-		this.collider = collider;
-		setVelocityX(horVel);
-		setVelocityY(verVel);
-		this.isStatic = isStatic;
-	}
-	
-	public PhysicsObject(Rectangle collider, boolean isStatic) {
-		this.collider = collider;
+	public PhysicsObject(Rectangle bounds, boolean isStatic) {
+		posX = (float)bounds.getX();
+		posY = (float)bounds.getY();
+		width = (float)bounds.getWidth();
+		height = (float)bounds.getHeight();
 		this.isStatic = isStatic;
 	}
 	
 	public PhysicsObject(boolean isStatic) {
-		collider = new Rectangle();
 		this.isStatic = isStatic;
 	}
 	
 	public void setStatic(boolean isStatic) {
 		this.isStatic = isStatic;
 	}
-	
-	public final Rectangle getCollider() {
-		return collider;
+	public boolean contains(Point p) {
+		if ((posX < p.getX()) 		  &&
+			(posX + width > p.getX()) &&
+			(posY < p.getY())		  &&
+			(posY + height > p.getY())) {
+			return true;
+		} else {
+			return false;
+		}
 	}
-	
-	public int getX() {
-		return collider.x;
+	public boolean contains(PhysicsObject object) {
+		if ((posX <= object.getX()) 							&&
+			(posX + width >= object.getX() + object.getWidth()) &&
+			(posY <= object.getY())								&&
+			(posY + height >= object.getY() + object.getHeight())) {
+			return true;
+		} else {
+			return false;
+		}
 	}
-	public int getY() {
-		return collider.y;
+	public boolean intersects(PhysicsObject object) {
+		if ((posX + width >= object.getX())				&&
+			(posX <= object.getX() + object.getWidth()) &&
+			(posY + height >= object.getY()) 			&&
+			(posY <= object.getY() + object.getHeight())) {
+			return true;
+		} else {
+			return false;
+		}
 	}
-	public int getWidth() {
-		return collider.width;
+	public float getX() {
+		return posX;
 	}
-	public int getHeight() {
-		return collider.height;
+	public float getY() {
+		return posY;
 	}
-
-	public void incWidth() {
-		collider.width += 1;
+	public float getWidth() {
+		return width;
 	}
-	public void incHeight() {
-		collider.height += 1;
+	public float getHeight() {
+		return height;
 	}
-
-	public void decWidth() {
-		collider.width -= 1;
-	}
-	public void decHeight() {
-		collider.height -= 1;
-	}
-	
-	
-	public void setVelocityX(int x) {
-		velocity.x = x;
+	public void setVelocityX(float x) {
+		velocityX = x;
 	}
 	public void setVelocityY(float y) {
-		velocity.setLocation(velocity.getX(), y);
+		velocityY = y;
 	}
-	public final Point getVelocity() {
-		return velocity;
+	public float getVelocityX() {
+		return velocityX;
 	}
-	public void setLocationX(int horPos) {
-		collider.x = horPos;
+	public float getVelocityY() {
+		return velocityY;
 	}
-	public void setLocationY(int verPos) {
-		collider.y = verPos;
+	public void setLocationX(float horPos) {
+		posX = horPos;
 	}
-	
+	public void setLocationY(float verPos) {
+		posY = verPos;
+	}
 	public void addLocationX(float value) {
-		collider.x += value;
+		posX += value;
 	}
 	public void addLocationY(float value) {
-		collider.y += value;
+		posY += value;
 	}
-	public void setWidth(int width) {
-		collider.width = width;
+	public void setWidth(float width) {
+		this.width = width;
 	}
-	public void setHeight(int height) {
-		collider.height = height;
-	}
-	public void setCollider(Rectangle collider) {
-		this.collider = collider;
+	public void setHeight(float height) {
+		this.height = height;
 	}
 	public void setHorCollision(PhysicsObject collision) {
 		lastHorCollision = collision;
@@ -1062,12 +1070,12 @@ class PhysicsLayer
 				
 				handleHorizontalCollisions(collider);
 				if (collider.getLastHorCollision() == null) {
-					collider.addLocationX((int)collider.getVelocity().getX());
+					collider.addLocationX(collider.getVelocityX());
 				}
 				
 				handleVerticalCollisions(collider);
 				if (collider.getLastVerCollision() == null) {
-					collider.addLocationY((int)collider.getVelocity().getY());
+					collider.addLocationY(collider.getVelocityY());
 				}
 			}
 		}
@@ -1090,59 +1098,35 @@ class PhysicsLayer
 		// 
 		float closestBoundPosition = Float.POSITIVE_INFINITY;
 		
-		// Uses a different preset of values when <ball> is moving to the right.
-		if (movingObj.getVelocity().getX() > 0) {
-			
-			for (int i = 0; i < touchingLayers.size(); i++)
-			{
-				// Iterates a specific comparison over every Rectangle() in <rects>.
-				for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
-				{					
-					if (movingObj != other)
-					{
-						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
-						// If so, the <rect> of this iteration's X value becomes the new <closesetBoundPosition>.
-						if(
-							(other.getX() > movingObj.getX() + movingObj.getWidth() / 2)                                              		 &&
-							(other.getX() - (movingObj.getX() + movingObj.getWidth()) < closestBoundPosition)                         		 &&
-							(movingObj.getY() < other.getY() + other.getHeight() && movingObj.getY() + movingObj.getHeight() > other.getY()) &&
-							(movingObj.getX() + movingObj.getWidth() + movingObj.getVelocity().getX() >= other.getX())) {
-							
-							movingObj.setHorCollision(other);
-							other.setHorCollision(movingObj);
-							movingObj.setLocationX((int)(other.getX() - movingObj.getWidth() - 1));
-						}
-					}
-				}
-			}
-		}
-		// Uses a different preset of values when <ball> is moving to the left.
-		else if (movingObj.getVelocity().getX() < 0)
+		for (int i = 0; i < touchingLayers.size(); i++)
 		{
-			for (int i = 0; i < touchingLayers.size(); i++)
-			{
-				// Iterates a specific comparison over every Rectangle() in <rects>.
-				for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
+			// Iterates a specific comparison over every Rectangle() in <rects>.
+			for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
+			{					
+				if (movingObj != other)
 				{
-
-					
-					if (movingObj != other)
-					{
-						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
-						// If so, the <rect> of this iteration's X value becomes the new <closesetBoundPosition>.
-						if(
-							(other.getX() + other.getWidth() < movingObj.getX() + movingObj.getWidth() / 2)                            		 &&
-							(movingObj.getX() - (other.getX() + other.getWidth()) < closestBoundPosition)                         			 &&
-							(movingObj.getY() < other.getY() + other.getHeight() && movingObj.getY() + movingObj.getHeight() > other.getY()) &&
-							(movingObj.getX() + movingObj.getVelocity().getX() <= other.getX() + other.getWidth())) {
+					// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
+					// If so, the <rect> of this iteration's X value becomes the new <closesetBoundPosition>.
+					if(
+						(other.getX() > movingObj.getX() + movingObj.getWidth() / 2)                                              		 &&
+						(other.getX() - (movingObj.getX() + movingObj.getWidth()) < closestBoundPosition)                         		 &&
+						(movingObj.getY() < other.getY() + other.getHeight() && movingObj.getY() + movingObj.getHeight() > other.getY()) &&
+						(movingObj.getX() + movingObj.getWidth() + movingObj.getVelocityX() >= other.getX())) {
 							
-							movingObj.setHorCollision(other);
-							other.setHorCollision(other);
-							movingObj.setLocationX((int)(other.getX() + other.getWidth() + 1));
-						}
+						movingObj.setHorCollision(other);
+						other.setHorCollision(movingObj);
+						movingObj.setLocationX(other.getX() - movingObj.getWidth() - 1);
+						
+					} else if(
+						(other.getX() + other.getWidth() < movingObj.getX() + movingObj.getWidth() / 2)                            		 &&
+						(movingObj.getX() - (other.getX() + other.getWidth()) < closestBoundPosition)                         			 &&
+						(movingObj.getY() < other.getY() + other.getHeight() && movingObj.getY() + movingObj.getHeight() > other.getY()) &&
+						(movingObj.getX() + movingObj.getVelocityX() <= other.getX() + other.getWidth())) {
+								
+						movingObj.setHorCollision(other);
+						other.setHorCollision(other);
+						movingObj.setLocationX(other.getX() + other.getWidth() + 1);
 					}
-					
-
 				}
 			}
 		}
@@ -1166,55 +1150,35 @@ class PhysicsLayer
 	{
 		// 
 		float closestBoundPosition = Float.POSITIVE_INFINITY;
-	
-		// Uses a different preset of values when <ball> is moving down.
-		if (movingObj.getVelocity().getY() > 0) {
 		
-			for (int i = 0; i < touchingLayers.size(); i++)
-			{
-				// Iterates a specific comparison over every Rectangle() in <rects>.
-				for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
-				{
-					if (movingObj != other)
-					{
-						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
-						// If so, the <rect> of this iteration's Y value becomes the new <closesetBoundPosition>.
-						if(
-							(other.getY() > movingObj.getY() + movingObj.getHeight() / 2)                                           	   &&
-							(other.getY() - (movingObj.getY() + movingObj.getHeight()) < closestBoundPosition)                      	   &&
-							(movingObj.getX() < other.getX() + other.getWidth() && movingObj.getX() + movingObj.getWidth() > other.getX()) &&
-							(movingObj.getY() + movingObj.getHeight() + movingObj.getVelocity().getY() >= other.getY())) {
-						
-							movingObj.setVerCollision(other);
-							other.setVerCollision(movingObj);
-							movingObj.setLocationY((int)(other.getY() - movingObj.getHeight() - 1));
-						}
-					}
-				}
-			}
-		}
-		// Uses a different preset of values when <ball> is moving up.
-		else if (movingObj.getVelocity().getY() < 0)
+		for (int i = 0; i < touchingLayers.size(); i++)
 		{
-			for (int i = 0; i < touchingLayers.size(); i++)
+			// Iterates a specific comparison over every Rectangle() in <rects>.
+			for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
 			{
-				// Iterates a specific comparison over every Rectangle() in <rects>.
-				for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
+				if (movingObj != other)
 				{
-					if (movingObj != other)
-					{
-						// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
-						// If so, the <rect> of this iteration's Y value becomes the new <closesetBoundPosition>.
-						if(
-							(other.getY() + other.getHeight() < movingObj.getY() + movingObj.getHeight() / 2)                        	   &&
-							(movingObj.getY() - (other.getY() + other.getHeight()) < closestBoundPosition)                      		   &&
-							(movingObj.getX() < other.getX() + other.getWidth() && movingObj.getX() + movingObj.getWidth() > other.getX()) &&
-							(movingObj.getY() + movingObj.getVelocity().getY() <= other.getY() + other.getHeight())) {
+					// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
+					// If so, the <rect> of this iteration's Y value becomes the new <closesetBoundPosition>.
+					if(
+						(other.getY() > movingObj.getY() + movingObj.getHeight() / 2)                                           	   &&
+						(other.getY() - (movingObj.getY() + movingObj.getHeight()) < closestBoundPosition)                      	   &&
+						(movingObj.getX() < other.getX() + other.getWidth() && movingObj.getX() + movingObj.getWidth() > other.getX()) &&
+						(movingObj.getY() + movingObj.getHeight() + movingObj.getVelocityY() >= other.getY())) {
+					
+						movingObj.setVerCollision(other);
+						other.setVerCollision(movingObj);
+						movingObj.setLocationY(other.getY() - movingObj.getHeight() - 1);
 						
-							movingObj.setVerCollision(other);
-							other.setVerCollision(movingObj);
-							movingObj.setLocationY((int)(other.getY() + other.getHeight() + 1));
-						}
+					} else if (
+						(other.getY() + other.getHeight() < movingObj.getY() + movingObj.getHeight() / 2)                        	   &&
+						(movingObj.getY() - (other.getY() + other.getHeight()) < closestBoundPosition)                      		   &&
+						(movingObj.getX() < other.getX() + other.getWidth() && movingObj.getX() + movingObj.getWidth() > other.getX()) &&
+						(movingObj.getY() + movingObj.getVelocityY() <= other.getY() + other.getHeight())) {
+						
+						movingObj.setVerCollision(other);
+						other.setVerCollision(movingObj);
+						movingObj.setLocationY(other.getY() + other.getHeight() + 1);
 					}
 				}
 			}
@@ -1264,7 +1228,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private final int BOUNCE_SPEED = 1;
 
 	
-	private final float PIXELS_PER_METER = 1.0f; // Find a good value once the projectile is implemented
+	private final float PIXELS_PER_METER = 0.002f; // Find a good value once the projectile is implemented
 
 
 	private final float MERCURY    = 3.70f 	* PIXELS_PER_METER;
@@ -1289,6 +1253,11 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	
 	// Defines the bounding box that represents this class's primary vector shape, <ball>.
 	private PhysicsObject ball = new PhysicsObject(false);
+	private PhysicsObject projectile = null;
+	
+	
+	private PhysicsObject cannonHitBox = new PhysicsObject(new Rectangle(0, 0, CANNON_PIVOT_SIZE / 2 + CANNON_LENGTH, 
+																			   CANNON_PIVOT_SIZE / 2 + CANNON_LENGTH), true);
 	
 	private PhysicsObject southBound = new PhysicsObject(true);
 	private PhysicsObject northBound = new PhysicsObject(true);
@@ -1296,7 +1265,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private PhysicsObject eastBound  = new PhysicsObject(true);
 	
 	// Defines the rectangle used to represent the area the mouse is currently drug over (values from this rect can also become a solid rectangle).
-	private Rectangle dragBox = new Rectangle();
+	private PhysicsObject dragBox = new PhysicsObject(true);
 	
 	private PhysicsLayer boxLayer     = new PhysicsLayer();
 	private PhysicsLayer ballLayer    = new PhysicsLayer();
@@ -1308,6 +1277,9 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	// Defines two toggle-booleans, which control whether or not the mouse is currently active, and whether or not it is affecting <dragBox>.
 	private boolean dragBoxActive = false;
 	private boolean mouseActive = false;
+	private boolean cannonHit = false;
+	private boolean ballHit = false;
+	private boolean clickedOnce = false;
 
 	// Defines components used for doublebuffering.
 	private Image buffer; // - actual buffer image, <buffer>,
@@ -1318,7 +1290,10 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private Rectangle cannonPivot = new Rectangle(0, 0, CANNON_PIVOT_SIZE, CANNON_PIVOT_SIZE);
 	
 	private int cannonAngle = 0;
-	private int gravity = 1;
+	
+	private Point cannonEndPos = new Point();
+	
+	private float gravity = 1;
 
 	/*
 	The Ball() method:
@@ -1383,9 +1358,13 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		screenBounds.addPhysicsObject(southBound);
 		screenBounds.addPhysicsObject(westBound);
 		screenBounds.addPhysicsObject(eastBound);
+		screenBounds.addPhysicsObject(cannonHitBox);
 		
 		ballLayer.addTouchingLayer(screenBounds);
 		ballLayer.addTouchingLayer(boxLayer);
+		ballLayer.addTouchingLayer(ballLayer);
+		screenBounds.addTouchingLayer(ballLayer);
+		screenBounds.addTouchingLayer(boxLayer);
 		
 		// Returns, exiting the function.
 		return;
@@ -1428,50 +1407,44 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		// Defines <valid>, a temporary boolean value used for input validation (see below).
 		boolean valid = true;
 		
-		// Calls tryRemoveRect(), if the dragbox selection is too small to become a rectangle (failsafe).
-		if (dragBox.getWidth() * dragBox.getHeight() <= 2)
-		{
-			tryRemoveRect(dragBox.getLocation());
-		}
-		// Otherwise, begins iterating through several checks to see if the drag box has valid coordinates to become a rectangle.
-		else
-		{
-			
-			// Checks if the new rect set by <dragBox> will intersect the ball
-			// - also checks to see if the <dragBox> will intersect any edges of the screen (including Ball()'s border).
-			// - if not, iteration continues.
-			if (
-			!dragBox.intersects(ball.getCollider())         &&
+		// Begins iterating through several checks to see if the drag box has valid coordinates to become a rectangle.
+		// Checks if the new rect set by <dragBox> will intersect the ball
+		// - also checks to see if the <dragBox> will intersect any edges of the screen (including Ball()'s border).
+		// - if not, iteration continues.
+		if (
+			!ball.intersects(dragBox)         					    &&
+			!cannonHitBox.intersects(dragBox) 						&&
+			(projectile == null || !dragBox.intersects(projectile)) &&
 			!(
 			dragBox.getX() > screenWidth - 1  ||
 			dragBox.getX() < 1                || 
 			dragBox.getY() > screenHeight - 1 ||
 			dragBox.getY() < 1 ))
+		{
+			// Iterates through each entry within <rects>, flagging <valid> as false whenever one of them entirely contains <dragBox>.
+			for (PhysicsObject rect : rects)
 			{
-				// Iterates through each entry within <rects>, flagging <valid> as false whenever one of them entirely contains <dragBox>.
-				for (PhysicsObject rect : rects)
-				{
-					if (rect.getCollider().contains(dragBox))
-						valid = false;
+				if (rect.contains(dragBox))
+					valid = false;
+			}
+			
+			// If <valid> is true afterwards, a removal function is called. 
+			if (valid)
+			{
+				
+				// Removes any rectangles that are contained entirely within <dragBox>.
+				for (int i = rects.size() - 1; i > -1; i--)
+				{ 
+					if (dragBox.contains(rects.elementAt(i))) {
+						boxLayer.removePhysicsObject(rects.elementAt(i));
+						rects.remove(i);
+					}
 				}
 				
-				// If <valid> is true afterwards, a removal function is called. 
-				if (valid)
-				{
-					
-					// Removes any rectangles that are contained entirely within <dragBox>.
-					for (int i = rects.size() - 1; i > -1; i--)
-					{ 
-						if (dragBox.contains(rects.elementAt(i).getCollider())) {
-							boxLayer.removePhysicsObject(rects.elementAt(i));
-							rects.remove(i);
-						}
-					}
-					
-					// Afterward, adds the dragbox to <rects>.
-					rects.add(new PhysicsObject(new Rectangle(dragBox), true));
-					boxLayer.addPhysicsObject(rects.lastElement());
-				}
+				// Afterward, adds the dragbox to <rects>.
+				rects.add(dragBox);
+				dragBox = null;
+				boxLayer.addPhysicsObject(rects.lastElement());
 			}
 		}
 		
@@ -1499,8 +1472,8 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		double horValue = Math.cos(radAngle);
 		double verValue = Math.sin(radAngle);
 		
-		int cannonEndX = (int)(cannonPivot.getX() + horValue * CANNON_LENGTH);
-		int cannonEndY = (int)(cannonPivot.getY() - verValue * CANNON_LENGTH);
+		cannonEndPos.x = (int)(cannonPivot.getX() + horValue * CANNON_LENGTH);
+		cannonEndPos.y = (int)(cannonPivot.getY() - verValue * CANNON_LENGTH);
 		
 		// Adds the lower left point (when angled towards the upper left quadrant)
 		cannon.addPoint(
@@ -1509,19 +1482,22 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		
 		// Adds the upper left point
 		cannon.addPoint(
-		(int)(cannonEndX + Math.round(verValue * -CANNON_WIDTH / 2)),
-		(int)(cannonEndY + Math.round(horValue * -CANNON_WIDTH / 2)));
+		(int)(cannonEndPos.getX() + Math.round(verValue * -CANNON_WIDTH / 2)),
+		(int)(cannonEndPos.getY() + Math.round(horValue * -CANNON_WIDTH / 2)));
 		
 		// Adds the upper right point
 		cannon.addPoint(
-		(int)(cannonEndX + Math.round(verValue * CANNON_WIDTH / 2)),
-		(int)(cannonEndY + Math.round(horValue * CANNON_WIDTH / 2)));
+		(int)(cannonEndPos.getX() + Math.round(verValue * CANNON_WIDTH / 2)),
+		(int)(cannonEndPos.getY() + Math.round(horValue * CANNON_WIDTH / 2)));
 		
 		//Adds the lower right point
 		cannon.addPoint(
 		(int)(cannonPivot.getX() + Math.round(verValue * CANNON_WIDTH / 2)),
 		(int)(cannonPivot.getY() + Math.round(horValue * CANNON_WIDTH / 2)));
 	
+		cannonHitBox.setLocationX((int)cannonPivot.getX() - CANNON_LENGTH);
+		cannonHitBox.setLocationY((int)cannonPivot.getY() - CANNON_LENGTH);
+		
 		// Adjusts the pivot's position.
 		cannonPivot.x -= CANNON_PIVOT_SIZE / 2;
 		cannonPivot.y -= CANNON_PIVOT_SIZE / 2;
@@ -1559,8 +1535,15 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		// Updates the state of <dragBoxActive>,
 		dragBoxActive = true;
 		
-		// Updates the bounds of <dragBox>,
-		dragBox.setBounds(x, y, width, height);
+		if (dragBox == null) {
+			dragBox = new PhysicsObject(new Rectangle(x, y, width, height), true);
+		} else {
+			// Updates the bounds of <dragBox>,
+			dragBox.setLocationX(x);
+			dragBox.setLocationY(y);
+			dragBox.setWidth(width);
+			dragBox.setHeight(height);
+		}
 		
 		// Calls repaint() after the box has been updated, before returning.
 		repaint();
@@ -1585,7 +1568,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private synchronized void tryRemoveRect(Point point) {
 		// Iterates backwards through <rects>, removing any entries that contain <point> along the way.
 		for (int i = rects.size() - 1; i > -1; i--) {
-			if (rects.elementAt(i).getCollider().contains(point)) {
+			if (rects.elementAt(i).contains(point)) {
 				boxLayer.removePhysicsObject(rects.elementAt(i));
 				rects.remove(i);
 			}
@@ -1596,7 +1579,57 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		// Returns, ending the function.
 		return;
 	}
-
+	
+	
+	public boolean cannonWasHit() {
+		// This could be swapped for a flag that could be put up with a check inside of Ball.updatePhysics
+		return cannonHit;
+	}
+	
+	
+	public boolean ballWasHit() {
+		// This could be swapped for a flag that could be put up with a check inside of Ball.updatePhysics
+		return ballHit;
+	}
+	
+	public void updateProjectile() {
+		if (projectile != null) {
+			
+			// Set the new velocity of the projectile
+			projectile.setVelocityY(projectile.getVelocityY() + gravity);
+			
+			// The screenBounds layer is reused for the projectile
+			screenBounds.updatePhysics();
+			
+			if (projectile.getLastHorCollision() != null) {
+				if (projectile.getLastHorCollision() == ball) {
+					ballHit = true;
+				} else {
+					int i = rects.indexOf(projectile.getLastHorCollision());
+					if (i != -1) {
+						boxLayer.removePhysicsObject(rects.elementAt(i));
+						rects.remove(i);
+						destroyProjectile();
+					}
+				}
+			} else if (projectile.getLastVerCollision() != null) {
+				if (projectile.getLastVerCollision() == ball) {
+					ballHit = true;
+				} else {
+					int i = rects.indexOf(projectile.getLastVerCollision());
+					if (i != -1) {
+						boxLayer.removePhysicsObject(rects.elementAt(i));
+						rects.remove(i);
+						destroyProjectile();
+					}
+				}
+			}
+			
+			// Check if the ball is outside of screen
+			// If projectile is outside of screen then check if it will be re-entering the screen again
+			// If the projectile is not going to re-enter the screen then remove it from "screenBounds" and set it equal to null
+		}
+	}
 
 
 	/*
@@ -1609,18 +1642,35 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			- Updates <ball>'s position within Ball(),
 			  + also conditionally changes <velocity>, depending on potential collisions.
 	*/
-	public void updatePhysics()
+	public void updateBall()
 	{
 		ballLayer.updatePhysics();
 		if (ball.getLastHorCollision() != null) {
-			ball.setVelocityX(-(int)ball.getVelocity().getX());
+			ball.setVelocityX(-(int)ball.getVelocityX());
+			
+			// Checks if the ball hit the cannon
+			if (ball.getLastHorCollision() == cannonHitBox) {
+				cannonHit = true;
+			}
 		}
 		if (ball.getLastVerCollision() != null) {
-			ball.setVelocityY(-(int)ball.getVelocity().getY());
+			ball.setVelocityY(-(int)ball.getVelocityY());
+			
+			// Checks if the ball hit the cannon
+			if (ball.getLastVerCollision() == cannonHitBox) {
+				cannonHit = true;
+			}
 		}
 		
 		// Returns, ending the function.
 		return;
+	}
+	
+	private void destroyProjectile() {
+		if (projectile != null) {
+			screenBounds.removePhysicsObject(projectile);
+			projectile = null;
+		}
 	}
 
 	/*
@@ -1648,6 +1698,8 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		// Fetches the potential new screen width and heights (new values).
 		this.screenWidth = screenWidth;
 		this.screenHeight = screenHeight;
+		
+		updateCannon();
 
 		// Checks to see if the new screen dimensions would cause a size violation.
 		if (hasSizeViolation())
@@ -1656,6 +1708,8 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			this.screenWidth = oldWidth;
 			this.screenHeight = oldHeight;
 			value = false;
+			
+			updateCannon();
 		}
 		
 		// Otherwise, the screen is resized, and the graphics buffer is reset.
@@ -1671,14 +1725,25 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			
 			southBound.setLocationY(screenHeight - 1);
 			eastBound.setLocationX(screenWidth   - 1);
-			
-			updateCannon();
 		}
 		
 		// Returns value, ending the function.
 		return value;
 	}
-
+	
+	
+	private void tryFireCannon() {
+		if (projectile == null) {
+			projectile = new PhysicsObject(false);
+			projectile.setLocationX((float)cannonEndPos.getX() - CANNON_WIDTH / 2);
+			projectile.setLocationY((float)cannonEndPos.getY() - CANNON_WIDTH / 2);
+			projectile.setWidth(CANNON_WIDTH);
+			projectile.setHeight(CANNON_WIDTH);
+			projectile.setVelocityX((float)Math.cos(cannonAngle * Math.PI / 180f));
+			projectile.setVelocityY(-(float)Math.sin(cannonAngle * Math.PI / 180f));
+			screenBounds.addPhysicsObject(projectile);
+		}
+	}
 
 
 	/*
@@ -1699,11 +1764,11 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		boolean value = true;
 		
 		// Stores the old X and Y values, for use during the resizing process.
-		int oldX = ball.getX();
-		int oldY = ball.getY();
+		float oldX = ball.getX();
+		float oldY = ball.getY();
 		
 		// Stores the old size of the ball.
-		int oldSize = ball.getWidth();
+		float oldSize = ball.getWidth();
 
 		// Forces the potential new value(s) to be even.
 		ball.setHeight((size / 2) * 2);
@@ -1759,46 +1824,46 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	};
 
 
-	public int gravRule(String key)
+	public float gravRule(String key)
 	{
-		int value = -1;
+		float value = -1;
 		switch(key)
 		{
 			case("Mercury"):
-				value = (int) MERCURY;
+				value = MERCURY;
 				break;
 			case("Venus"):
-				value = (int) VENUS;
+				value = VENUS;
 				break;
 			case("Earth"):
-				value = (int) EARTH;
+				value = EARTH;
 				break;
 			case("Earth's Moon"):
-				value = (int) EARTHSMOON;
+				value = EARTHSMOON;
 				break;
 			case("Mars"):
-				value = (int) MARS;
+				value = MARS;
 				break;
 			case("Jupiter"):
-				value = (int) JUPITER;
+				value = JUPITER;
 				break;
 			case("Saturn"):
-				value = (int) SATURN;
+				value = SATURN;
 				break;
 			case("Uranus"):
-				value = (int) URANUS;
+				value = URANUS;
 				break;
 			case("Neptune"):
-				value = (int) NEPTUNE;
+				value = NEPTUNE;
 				break;
 			case("Pluto"):
-				value = (int) PLUTO;
+				value = PLUTO;
 				break;
 		}
 		return value;
 	};
 
-	public void setGrav(int value)
+	public void setGrav(float value)
 	{
 		gravity = value;
 		return;
@@ -1852,11 +1917,12 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			for (PhysicsObject rect : rects)
 			{
 				if(
-				(rect.getCollider().intersects(ball.getCollider()))     ||
+				(rect.intersects(ball))     						||
 				(rect.getX() + rect.getWidth() > screenWidth - 2)   ||
-				(rect.getX() < 1)                              ||
+				(rect.getX() < 1)                              		||
 				(rect.getY() + rect.getHeight() > screenHeight - 2) ||
-				(rect.getY() < 1))
+				(rect.getY() < 1) 									||
+				(cannonHitBox.intersects(rect)))
 					value = true;
 			}
 		}
@@ -1925,12 +1991,15 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		g.setColor(Color.black);
 		g.drawOval((int) ball.getX(), (int) ball.getY(), (int) ball.getWidth(), (int) ball.getHeight());
 		
+		if (projectile != null) {
+			g.setColor(Color.black);
+			g.fillOval((int) projectile.getX(), (int) projectile.getY(), (int) projectile.getWidth(), (int) projectile.getHeight());
+		}
+		
 		g.setColor(Color.blue);
 		g.fillPolygon(cannon);
 		
 		g.setColor(Color.black);
-		
-		//g.drawRect((int) cannonPivot.getX(), (int) cannonPivot.getY(), (int) cannonPivot.getWidth(), (int) cannonPivot.getHeight());
 		g.fillOval((int) cannonPivot.getX(), (int) cannonPivot.getY(), (int) cannonPivot.getWidth(), (int) cannonPivot.getHeight());
 
 		// Draws the dragbox onto the screen (if <dragBoxActive>).
@@ -1947,8 +2016,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		return;
 		
 	}
-
-
+	
 
 	/*
 	The mouseClicked() method:
@@ -1962,8 +2030,19 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	@Override
 	public void mouseClicked(MouseEvent e)
 	{
-		if (mouseActive)
-			tryRemoveRect(m1);
+		if (mouseActive) {
+			if (cannon.contains(m1)) {
+				tryFireCannon();
+				clickedOnce = false;
+			} else {
+				if (clickedOnce) {
+					clickedOnce = false;
+					tryRemoveRect(m1);
+				} else {
+					clickedOnce = true;
+				}
+			}
+		}
 
 		m1.x = -1;
 		
@@ -2073,5 +2152,8 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 
 	// Overwrites, but does not define mouseMoved() (unimplemented).
 	@Override
-	public void mouseMoved(MouseEvent e) {return;}
+	public void mouseMoved(MouseEvent e) {
+		clickedOnce = false;
+		return;
+	}
 }
