@@ -7,93 +7,6 @@
 .Last Revised: April 13th, 2021.              (4/13/2021).
 .Written for Technical Computing Using Java (CET-350-R01).
 Description:
-Itemized project to do list:
-- Menu Objects:
-A standard .awt Menu system which contains values for pausing, unpausing, changing the gravity, resetting and quitting the program.
-Structure:
-	[Control] < - holds checkboxes
-		[run     'ctrl + R']  < - grey out when running
-		[pause   'ctrl + P']  < - gray out when paused
-		[restart]
-		[quit]
-		
-	[Size]
-		[size] < - holds checkboxes
-			[#1] < - smallest
-			[#2]
-			[#3]
-			[#4]
-			[#5] < - largest
-		[speed] < - holds checkboxes
-			[#1] < - slowest
-			[#2]
-			[#3]
-			[#4]
-			[#5] < - fastest
-		
-	[Environment] < - holds checkboxes (based on the solar system)
-			[Mercury]
-			[Venus]
-			[Earth]
-			[Earth's Moon]
-			[Mars]
-			[Jupiter]
-			[Saturn]
-			[Uranus]
-			[Neptune]
-			[Pluto]
-^ Menu also should include seperator bars.
-	+ Macros:
-	A set of keyboard shortcuts which can be entered by the user to accomplish various tasks otherwise possible via the dropdown menus.
-	+ Simplifications:
-	Some features from the previous two programs will be reset here.
-	* Size will become a radio selection with five values,
-	* Speed will become a radio selection with five values,
-	* Pause will become a togglable radio button,
-	* quit will become a selectable radio button.
-- Cannon Object:
-A container which holds display information for a cannony polygon, and creates instances of a "Cannon Ball".
-	+ Cannon Angle:
-	Add a scrollBar() that controls the angle of the Cannon() polygon.
-	* default values are 0 to 90 degrees (converted from radians).
-	+ Cannon Velocity:
-	Add a scrollBar() that controls the velocity (also called 'strength' in some programs) of the cannon's projectile.
-	* default values are 100 to 1200 ft/sec.
-	+ Cannon Activation:
-	Add a feature within the canvas() that cancels rectangle drawing, and fires the cannon when the mouse is clicked inside of it's polygon.
-	+ Cannon Projectile Object:
-	Add a clone of 'ball' that is drawn to the screen using methods similar to Ball().
-	
-	+ Cannon Projectile Motion:
-	Add code to handle the cannon object's motion in a real-life approximating manner.
-	+ Cannon Projectile Collisions:
-	Add code to handle the cannon object colliding with what can be defined as the 'ground', (y >= screensize).
-- New Collisions:
-Add handlers for whenever the ball collides with:
-* a cannon projectile, - (both are destroyed, ball bounces)
-* the cannon.          - (both are destroyed)
-Add handlers for whenever a rectangle collides with:
-* the cannon ball.     - (rectangle is destroyed)
-Add handlers for whenever a the cannon ball collides with:
-* the cannon.          - (both are destroyed)
-Since this code must reset the game in either instance,
-* collisions should either be calculated seperately from the ball object in some instances, and:
-* collision code should return a value to the Frame() containing everything, to reset accordingly.
-- Reset Function:
-The game should have a soft destructor that resets the current state of the application, preserving only:
-* The player's score,
-* The ball's score.
-If a hard reset is requested by the professor, this function should take a parameter to preserve scores or not (defaults to false).
-- Score System:
-Two text counters which list the player, and ball's scores. Increment only by one, but could be stored as longs to ensure there is not a (reasonable) score overflow.
-- Status Indicator:
-Add a small text field which tells the user what event(s) have occured within the game. Events listed include:
-* Ball Scores a Point,
-* Player Scores a Point,
-* Ball Leaves and does not come back.
-A secondary indicator will also display the current program runtime (simulated).
-- Changes to the Click Handler:
-Add a check that ensures only left clicks are able to insert/delete rectangles, and fire the cannon (MOUSE-1 is the ID).
 */
 
 
@@ -115,7 +28,6 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.lang.Thread;
 import java.util.Vector;
-import java.util.Queue;
 
 /*
 The CannonVSBall() Class:
@@ -208,6 +120,9 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 
 	private int speed = 20;
 
+	private int time_ms = 0;
+	private int time_s  = 0;
+
 	private Frame BulletFrame;
 	private MenuBar menuBar;
 
@@ -268,7 +183,6 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	
 	private Label ballLabel = new Label  ("Ball Score  ");
 	private Label cannonLabel = new Label("Player Score");
-	
 	private Label timeLabel=new Label("Time");
 	// Defines two scrollbars (which allow the user to change the size and speed of the Ball within Ball()).
 	private Scrollbar velocityBar;
@@ -690,17 +604,25 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 			}
 			
 			// Sleeps for <delay>, which serves as an interpretation of the current <ball> speed.
-			if (!isPaused) {
-				ball.updateProjectile();
-				ball.updateBall();
-				ball.repaint();
-				try {
-					Thread.sleep(delay);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+			if (!isPaused)
+			{
+				time_ms += 1;
+
+				if ((time_ms % (int)(delay/2)) == 0)
+				{
+					ball.updateBall();
 				}
+				ball.updateProjectile();
+				
+				if((time_ms % 350) == 0)
+				{
+					time_s += 1;
+					timeField.setText(Integer.toString(time_s));
+					time_ms -= 350;
+				}
+
+				ball.repaint();
 			}
-			
 			// Lets the thread sleep for one tick, allowing for interupts.
 			try {
 				Thread.sleep(1);
