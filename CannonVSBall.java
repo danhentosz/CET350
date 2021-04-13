@@ -184,6 +184,9 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	private Label ballLabel = new Label  ("Ball Score  ");
 	private Label cannonLabel = new Label("Player Score");
 	private Label timeLabel=new Label("Time");
+	private Label messageLabel = new Label("                              ");
+	
+	
 	// Defines two scrollbars (which allow the user to change the size and speed of the Ball within Ball()).
 	private Scrollbar velocityBar;
 	private Scrollbar angleBar;
@@ -399,6 +402,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		ballLabel.setBackground(Color.lightGray);
 		cannonLabel.setBackground(Color.lightGray);
 		timeLabel.setBackground(Color.lightGray);
+		messageLabel.setBackground(Color.lightGray);
 
 		// Initalizes <gbl> and <gbc>, which are used together to constrain components within GUIBounceII().
 		GridBagLayout gbl = new GridBagLayout();
@@ -441,6 +445,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		addToControlPanel(cannonLabel,      10,1,1,1);
 		addToControlPanel(timeField, 7,0,2,1);
 		addToControlPanel(timeLabel, 7,1,2,1);
+		addToControlPanel(messageLabel, 1,2,5,1);
 		
 		// Adds components to their relevant listeners.
 		velocityBar.addAdjustmentListener(this);
@@ -613,6 +618,10 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 					ball.updateBall();
 				}
 				ball.updateProjectile();
+				
+				if (ball.hasMessage()) {
+					messageLabel.setText(ball.getMessage());
+				}
 				
 				if((time_ms % 350) == 0)
 				{
@@ -976,6 +985,9 @@ class PhysicsLayer
 	public void addTouchingLayer(PhysicsLayer layer) {
 		touchingLayers.add(layer);
 	}
+	public void removeTouchingLayer(PhysicsLayer layer) {
+		touchingLayers.remove(layer);
+	}
 	public void addPhysicsObject(PhysicsObject object) {
 		colliders.add(object);
 	}
@@ -1192,6 +1204,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private PhysicsLayer boxLayer     = new PhysicsLayer();
 	private PhysicsLayer ballLayer    = new PhysicsLayer();
 	private PhysicsLayer screenBounds = new PhysicsLayer();
+	private PhysicsLayer cannonLayer  = new PhysicsLayer();
 	
 	// Defines a Vector which stores all collision rectangles currently instantiated onto Ball().
 	private Vector<PhysicsObject> rects = new Vector<PhysicsObject>();
@@ -1202,6 +1215,13 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private boolean cannonHit = false;
 	private boolean ballHit = false;
 	private boolean clickedOnce = false;
+	private boolean comingBack = false;
+	private boolean messageFlag = false;
+	
+	// A flag that is set to true after an instance of the projectile leaves the cannon's bounding box initially
+	private boolean canHitCannon = false;
+	
+	private String message = "";
 
 	// Defines components used for doublebuffering.
 	private Image buffer; // - actual buffer image, <buffer>,
@@ -1280,11 +1300,12 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		screenBounds.addPhysicsObject(southBound);
 		screenBounds.addPhysicsObject(westBound);
 		screenBounds.addPhysicsObject(eastBound);
-		screenBounds.addPhysicsObject(cannonHitBox);
+		
+		cannonLayer.addPhysicsObject(cannonHitBox);
 		
 		ballLayer.addTouchingLayer(screenBounds);
 		ballLayer.addTouchingLayer(boxLayer);
-		ballLayer.addTouchingLayer(ballLayer);
+		ballLayer.addTouchingLayer(cannonLayer);
 		screenBounds.addTouchingLayer(ballLayer);
 		screenBounds.addTouchingLayer(boxLayer);
 		
@@ -1436,6 +1457,17 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		updateCannon();
 		repaint();
 	}
+	
+	
+	public String getMessage() {
+		messageFlag = false;
+		return message;
+	}
+	
+	
+	public boolean hasMessage() {
+		return messageFlag;
+	}
 
 
 	/*
@@ -1504,13 +1536,11 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	
 	
 	public boolean cannonWasHit() {
-		// This could be swapped for a flag that could be put up with a check inside of Ball.updatePhysics
 		return cannonHit;
 	}
 	
 	
 	public boolean ballWasHit() {
-		// This could be swapped for a flag that could be put up with a check inside of Ball.updatePhysics
 		return ballHit;
 	}
 	
@@ -1523,9 +1553,18 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			// The screenBounds layer is reused for the projectile
 			screenBounds.updatePhysics();
 			
+			if (!(canHitCannon || cannonHitBox.intersects(projectile))) {
+				canHitCannon = true;
+				screenBounds.addTouchingLayer(cannonLayer);
+			}
+			
 			if (projectile.getLastHorCollision() != null) {
 				if (projectile.getLastHorCollision() == ball) {
 					ballHit = true;
+					destroyProjectile();
+				} else if (projectile.getLastHorCollision() == cannonHitBox) {
+					cannonHit = true;
+					destroyProjectile();
 				} else {
 					int i = rects.indexOf(projectile.getLastHorCollision());
 					if (i != -1) {
@@ -1537,6 +1576,10 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			} else if (projectile.getLastVerCollision() != null) {
 				if (projectile.getLastVerCollision() == ball) {
 					ballHit = true;
+					destroyProjectile();
+				} else if (projectile.getLastVerCollision() == cannonHitBox) {
+					cannonHit = true;
+					destroyProjectile();
 				} else {
 					int i = rects.indexOf(projectile.getLastVerCollision());
 					if (i != -1) {
@@ -1547,9 +1590,36 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 				}
 			}
 			
-			// Check if the ball is outside of screen
-			// If projectile is outside of screen then check if it will be re-entering the screen again
-			// If the projectile is not going to re-enter the screen then remove it from "screenBounds" and set it equal to null
+			// (This check could maybe be removed if the projectile was 
+			// simply queued for destruction rather than destroyed right away)
+			// Ensures that the projectile was not destroyed due to a collision
+			if (projectile != null) {
+				
+				// Checks if the projectile is out of bounds
+				if (projectile.getY() > screenHeight 			  		  ||
+					projectile.getX() + projectile.getWidth() < 0 		  ||
+					projectile.getX() > screenWidth) {
+					
+					destroyProjectile();
+					setMessage("It's not coming back");
+					
+				} else if (projectile.getY() + projectile.getHeight() < 0) {
+					
+					if (!comingBack) {
+						float endXValue = (float)(projectile.getX() + Math.sqrt((projectile.getHeight() -projectile.getY() - projectile.getVelocityY()) / gravity) * projectile.getVelocityX());
+						// Check if coming back
+						if (endXValue + projectile.getWidth() > 0 && endXValue < screenWidth - 1) {
+							comingBack = true;
+							setMessage("It's coming back!");
+						} else {
+							destroyProjectile();
+							setMessage("It's not coming back");
+						}
+					}
+				} else {
+					comingBack = false;
+				}
+			}
 		}
 	}
 
@@ -1664,7 +1734,18 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			projectile.setVelocityX((float)Math.cos(cannonAngle * Math.PI / 180f));
 			projectile.setVelocityY(-(float)Math.sin(cannonAngle * Math.PI / 180f));
 			screenBounds.addPhysicsObject(projectile);
+			if (canHitCannon) {
+				canHitCannon = false;
+				screenBounds.removeTouchingLayer(cannonLayer);
+			}
+			setMessage("");
 		}
+	}
+	
+	
+	private void setMessage(String message) {
+		messageFlag = true;
+		this.message = message;
 	}
 
 
