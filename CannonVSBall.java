@@ -95,9 +95,14 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 
 	// Defines <SB_ANGLE>, the starting value of the ScrollBar("Angle").
 	private final int SB_ANGLE = (SB_ANGLE_MAX + SB_ANGLE_MIN) / 2;
+	
+	// Defines the minimum, maximum, and current speed values which can be held by a
+	// ScrollBar() instance (defined in initComponents()).
+	private final int SB_MIN_VELOCITY = 100;
+	private final int SB_MAX_VELOCITY = 500;
 
 	// Defines <SB_VELOCITY>, the starting value of the ScrollBar("Velocity").
-	private final int SB_VELOCITY = 50;
+	private final int SB_VELOCITY = (SB_MIN_VELOCITY + SB_MAX_VELOCITY) / 2;
 
 	// Defines <SB_VIS>, a constant added to the width of ScrollBar() instances.
 	private final int SB_VIS = 10;
@@ -111,11 +116,6 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	// Defines delay, a default value transformed by the current value of <sbSpeed>.
 	private int delay = 25;
 
-
-	// Defines the minimum, maximum, and current speed values which can be held by a
-	// ScrollBar() instance (defined in initComponents()).
-	private int sbMinVelocity = 100;
-	private int sbMaxVelocity = 1600 + SB_VIS;
 	private int sbVelocity    = SB_VELOCITY;
 
 	private int speed = 20;
@@ -380,8 +380,8 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Sets the constant value(s) associated with the speed scrollBar(),
 		// - also changes the background color of this component to gray.
 		velocityBar = new Scrollbar(Scrollbar.HORIZONTAL);
-		velocityBar.setMaximum(sbMaxVelocity + SB_VIS);
-		velocityBar.setMinimum(sbMinVelocity);
+		velocityBar.setMaximum(SB_MAX_VELOCITY + SB_VIS);
+		velocityBar.setMinimum(SB_MIN_VELOCITY);
 		velocityBar.setValue(sbVelocity);
 		velocityBar.setBackground(Color.gray);
 
@@ -493,6 +493,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		ball_panel.add("Center", ball);
 		ball.setCannonAngle(SB_ANGLE_MAX - SB_ANGLE + SB_ANGLE_MIN);
 		ball.setGrav(ball.gravRule("Earth"));
+		ball.setProjectileVel(velocityBar.getValue() * .005f);
 
 		// Validates the Frame() again, before returning.
 		BulletFrame.validate();
@@ -622,6 +623,15 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 				if (ball.hasMessage()) {
 					messageLabel.setText(ball.getMessage());
 				}
+				if (ball.ballWasHit()) {
+					cannonScore++;
+					cannonScoreField.setText(Integer.toString(cannonScore));
+					ball.reset();
+				} else if (ball.cannonWasHit()) {
+					ballScore++;
+					ballScoreField.setText(Integer.toString(ballScore));
+					ball.reset();
+				}
 				
 				if((time_ms % 350) == 0)
 				{
@@ -740,8 +750,12 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Stores the current Scrollbar() being changed via getSource().
 		Scrollbar sb = (Scrollbar) e.getSource();
 		
+		System.out.println(sb.getValue());
+		
 		if (sb == angleBar) {
 			ball.setCannonAngle(SB_ANGLE_MAX - sb.getValue() + SB_ANGLE_MIN);
+		} else if (sb == velocityBar) {
+			ball.setProjectileVel(sb.getValue() * .005f);
 		}
 
 		// Returns, ending the function.
@@ -1217,6 +1231,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private boolean clickedOnce = false;
 	private boolean comingBack = false;
 	private boolean messageFlag = false;
+	private boolean queuedShot = false;
 	
 	// A flag that is set to true after an instance of the projectile leaves the cannon's bounding box initially
 	private boolean canHitCannon = false;
@@ -1236,6 +1251,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	private Point cannonEndPos = new Point();
 	
 	private float gravity = 1;
+	private float projectileVel = 1;
 
 	/*
 	The Ball() method:
@@ -1311,6 +1327,29 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		
 		// Returns, exiting the function.
 		return;
+	}
+	
+	
+	public void reset() {
+		for (int i = rects.size() - 1; i > -1; i--) {
+			boxLayer.removePhysicsObject(rects.elementAt(i));
+			rects.remove(i);
+		}
+		ballHit = false;
+		cannonHit = false;
+		ball.setLocationX(25);
+		ball.setLocationY(25);
+		if (Math.random() > 0.5f)
+			ball.setVelocityX(-1);
+		else 
+			ball.setVelocityX(1);
+		if (Math.random() > 0.5f)
+			ball.setVelocityY(-1);
+		else
+			ball.setVelocityY(1);
+		destroyProjectile();
+		
+		setMessage("");
 	}
 
 
@@ -1544,7 +1583,15 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		return ballHit;
 	}
 	
+	public void setProjectileVel(float vel) {
+		projectileVel = vel;
+	}
+	
 	public void updateProjectile() {
+		if (queuedShot) {
+			queuedShot = false;
+			tryFireCannon();
+		}
 		if (projectile != null) {
 			
 			// Set the new velocity of the projectile
@@ -1590,8 +1637,6 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 				}
 			}
 			
-			// (This check could maybe be removed if the projectile was 
-			// simply queued for destruction rather than destroyed right away)
 			// Ensures that the projectile was not destroyed due to a collision
 			if (projectile != null) {
 				
@@ -1606,9 +1651,10 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 				} else if (projectile.getY() + projectile.getHeight() < 0) {
 					
 					if (!comingBack) {
-						float endXValue = (float)(projectile.getX() + Math.sqrt((projectile.getHeight() -projectile.getY() - projectile.getVelocityY()) / gravity) * projectile.getVelocityX());
+						float temp = -projectile.getVelocityY() / gravity;
+						temp = (float)(projectile.getX() + (Math.sqrt((projectile.getHeight() - projectile.getY()) / gravity) - temp) * projectile.getVelocityX());
 						// Check if coming back
-						if (endXValue + projectile.getWidth() > 0 && endXValue < screenWidth - 1) {
+						if (temp + projectile.getWidth() > 0 && temp < screenWidth - 1) {
 							comingBack = true;
 							setMessage("It's coming back!");
 						} else {
@@ -1731,8 +1777,8 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			projectile.setLocationY((float)cannonEndPos.getY() - CANNON_WIDTH / 2);
 			projectile.setWidth(CANNON_WIDTH);
 			projectile.setHeight(CANNON_WIDTH);
-			projectile.setVelocityX((float)Math.cos(cannonAngle * Math.PI / 180f));
-			projectile.setVelocityY(-(float)Math.sin(cannonAngle * Math.PI / 180f));
+			projectile.setVelocityX(projectileVel * (float)Math.cos(cannonAngle * Math.PI / 180f));
+			projectile.setVelocityY(projectileVel * -(float)Math.sin(cannonAngle * Math.PI / 180f));
 			screenBounds.addPhysicsObject(projectile);
 			if (canHitCannon) {
 				canHitCannon = false;
@@ -2035,7 +2081,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	{
 		if (mouseActive) {
 			if (cannon.contains(m1)) {
-				tryFireCannon();
+				queuedShot = true;
 				clickedOnce = false;
 			} else {
 				if (clickedOnce) {
