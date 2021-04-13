@@ -1,13 +1,41 @@
 /*
 .Program6, Bounce: Newton's Third     (CannonVSBall.java).
 .Created By:                                             .
-- Daniel Hentosz,    (HEN3883@calu.edu),                 .
 - Nathaniel Dehart   (DEH5850@calu.edu),                 .
-- Scott Trunzo       (TRU1931@calu.edu).                 .
+- Scott Trunzo       (TRU1931@calu.edu),                 .
+- Daniel Hentosz,    (HEN3883@calu.edu).                 .
 .Last Revised: April 13th, 2021.              (4/13/2021).
 .Written for Technical Computing Using Java (CET-350-R01).
 Description:
+Description:
+	Makes use of java's <awt> library to create an interactive GUI, which contains:
+		- a canvas panel    (see Ball() and BulletBounce()),
+		- a control panel   (see BulletBounce()),
+		- a container frame (see BulletBounce()),
+		- a dropdown menu   (see BulletBounce).
+
+	By interacting with this GUI's controls, the user can:
+		- run, pause, reset, or quit the program (via dropdown menu),
+		- change the size and speed of a ball that bounces along the screen (via two submenus 'sizes' and 'speeds'),
+		- change the gravity of the environment a cannon ball (physics object) embodies (via dropdown menu 'environments),
+		- change the inital velocity of a physics projectile (left scrollbar),
+		- change the inital angle of a physics projectile (right scrollBar).
+		
+	Alternatively, by clicking on the canvas panel, the user can:
+		- hold left mouse click (mouse 1) and drag to create a rectangle,
+			+ upon release, the rectangle is added to the screen,
+				* the ball bouncing around within the canvas panel will ricochet off of this rectangle,
+				* if a physics object collides with the rectangle, it will be deleted,
+				* if the rectangle contained any other, smaller rectangles entirely, they will be deleted,
+		- click mouse 1 twice once on a rectangle to delete it (and all others under it) from the canvas,
+		- click on the graphical representation of a cannon once, to launch a new physics object,
+			+ if the physics object leaves the screen (and assuredly cannot return), the player is allowed to launch another,
+			+ if the physics object collides with the cannon, the 'ball' gains a point (and the canvas resets),
+			+ if the physics object collides with the 'ball', the player gains a point (and the canvas resets).
+			
+	For more implementation details, see the class header at BulletBounce().
 */
+
 
 
 
@@ -48,11 +76,11 @@ public class CannonVSBall {
 	/*
 	The main() method:
 		Description: 
-			- Opens a new instance of GUIBounceII(). 
+			- Opens a new instance of BulletBounce(). 
 		Preconditions:
 			N/A: method ignores values in <args>[].
 		Postconditions:
-			- Creates a new instance of GUIBounceII, <gui>,
+			- Creates a new instance of BulletBounce, <gui>,
 				+ from here, implemented methods loop until the program is exited.
 	*/
 	public static void main(String[] args) {
@@ -65,6 +93,32 @@ public class CannonVSBall {
 
 /*
 The BulletBounce() Class:
+	Description:*
+		- serves as a container window (Frame()) for an instance of Ball() (and several <...awt...> GUI components),
+		- allows interface with Ball() via several UI elements(),
+			+ Run,  Pause          - Menu/Hotkey (Toggles between running and pausing Ball()'s iterations),
+			+ Reset                - Menu        (Resets the position/state of all objects on Ball()'s canvas),
+			+ Quit                 - Menu        (Exits the program (functionality is the same as clicking the [x] at the upper right),
+			+ Speed Controls       - Menu        (Controls Ball()'s current iteraton speed; Extra Slow ... Extra Fast),
+			+ Size Controls        - Menu        (Controls Ball()'s "Ball" size; Extra Small ... Extra Large),
+			+ Environment Controls - Menu        (Sets the current force of gravity on Ball()'s main physics object),
+			+ Velocity Controls    - Scroll      (Sets the inital velocity of Ball()'s main physics object; higher = faster).
+			+ Angle Controls       - Scroll      (Sets the inital angle of Ball()'s main physics object; higher = higher).
+	    * - this class also hosts functionality from Ball(). See that class's header comment for more informatjon.
+	Implements:*
+		- WindowListener()     - for window related events (open, close, etc...),
+		- ComponentListener()  - for certain java.awt... components (Button(), ScrollBar()),
+		- ActionListener()     - for action(s) taken by the user's computer's peripherals,
+		- AdjustmentListener() - for adjustment(s) to certain components (ScrollBar()),
+		- ItemListener()       - for user interaction with certain kinds of MenuItem() subclasses,
+		- Runnable()           - for the use of Thread() throughout instances of BulletBounce(),
+		* - this class also hosts listeners from Ball(). See that class's header comment for more informatjon.
+	Preconditions:
+		- N/A.
+	Postconditions:
+		- Constructor returns an instance of BulletBounce(),
+			+ internal methods (makeSheet(), initComponents(), sizeScreen(), start()) are also ran.
+				- start() begins an internal loop, which can only be terminated by user input (clicking on "Quit" or [x]).
 */
 class BulletBounce implements ActionListener, WindowListener, ComponentListener, AdjustmentListener, ItemListener, Runnable
 {
@@ -99,7 +153,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	// Defines the minimum, maximum, and current speed values which can be held by a
 	// ScrollBar() instance (defined in initComponents()).
 	private final int SB_MIN_VELOCITY = 100;
-	private final int SB_MAX_VELOCITY = 500;
+	private final int SB_MAX_VELOCITY = 600;
 
 	// Defines <SB_VELOCITY>, the starting value of the ScrollBar("Velocity").
 	private final int SB_VELOCITY = (SB_MIN_VELOCITY + SB_MAX_VELOCITY) / 2;
@@ -108,39 +162,44 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	private final int SB_VIS = 10;
 
 
-	// Defines <radioButton> a string which passes the pressed radio-button-checkbox to Ball().
+	// Defines <radioButton> a string which passes the pressed radio-button-checkbox to Ball() and BulletBounce().
 	private String radioButton = "";
-
-
 
 	// Defines delay, a default value transformed by the current value of <sbSpeed>.
 	private int delay = 25;
 
-	private int sbVelocity    = SB_VELOCITY;
+	// Defines the mutable velocity value, sbVelocity. 
+	private int sbVelocity = SB_VELOCITY;
 
-	private int speed = 20;
-
+	// Defines the mutable time (milliseconds) and time (seconds) values.
+	// - these values are rough estimates, and are mostly used for staggering updates inside of run().
 	private int time_ms = 0;
 	private int time_s  = 0;
 
+	// Defines <screenReset>, a boolean that tells run() when the reset button is pressed. 
+	private boolean screenReset = false;
+
+	// Defines the main Frame() object.
 	private Frame BulletFrame;
+	
+	// Defines the main menubar.
 	private MenuBar menuBar;
 
+	// Defines <menuControl>, and it's associated menu items.
 	private Menu menuControl;
 	private MenuItem Run;
 	private MenuItem Pause;
 	private MenuItem Reset;
 	private MenuItem Quit;
 
+	// Defines <menuSize>, it's submenus, and their menu items.
 	private Menu menuSize;
-	
 	private Menu menuSizeSelector;
 	private CheckboxMenuItem sizeXSmall;
 	private CheckboxMenuItem sizeSmall;
 	private CheckboxMenuItem sizeMedium;
 	private CheckboxMenuItem sizeLarge;
 	private CheckboxMenuItem sizeXLarge;
-	
 	private Menu menuSpeed;
 	private CheckboxMenuItem speedXSlow;
 	private CheckboxMenuItem speedSlow;
@@ -148,6 +207,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	private CheckboxMenuItem speedFast;
 	private CheckboxMenuItem speedXFast;
 		
+	// Defines <menuEnvironment>, and it's associated menu items.
 	private Menu menuEnvironment;
 	private CheckboxMenuItem mercury;
 	private CheckboxMenuItem venus;
@@ -167,8 +227,8 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 
 
 	// Defines two control booleans, which are used as logic/loop controls later in the program.
-	private boolean isRunning = true; // controls whether or not GUIBounceII()'s thread iterates,
-	private boolean isPaused = true;  // controls whether or not GUIBounceII()'s Ball() updates.
+	private boolean isRunning = true; // controls whether or not BulletBounce()'s thread iterates,
+	private boolean isPaused = true;  // controls whether or not BulletBounce()'s Ball() updates.
 
 	// Defines <thread>, which is used to run continuous code after this class is instantiated. 
 	private Thread thread;
@@ -178,28 +238,41 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 
 
 	// Defines two instances of Label(), which indicate which scrollbar is for Ball Speed, and which is for Ball Size.
-	private Label velocityLabel = new Label("Velocity", Label.CENTER);
-	private Label angleLabel  = new Label("Angle", Label.CENTER);
+	private Label velocityLabel;
+	private Label angleLabel;
 	
-	private Label ballLabel = new Label  ("Ball Score  ");
-	private Label cannonLabel = new Label("Player Score");
-	private Label timeLabel=new Label("Time");
-	private Label messageLabel = new Label("                              ");
+	// Defines misc. labels used for the ball and player's scores, the current time, and the current UI message.
+	private Label ballLabel;
+	private Label cannonLabel;
+	private Label timeLabel;
+	private Label messageLabel;
 	
 	
-	// Defines two scrollbars (which allow the user to change the size and speed of the Ball within Ball()).
+	// Defines two scrollbars (which allow the user to change the velocity and speed of the physics object within Ball()).
 	private Scrollbar velocityBar;
 	private Scrollbar angleBar;
 
-	private TextField ballScoreField = new TextField("0");
-	private TextField cannonScoreField = new TextField("0");
-	private TextField timeField=new TextField("0");
+	// Defines various text fields, which display the ball's score, player's score, and the current time elapsed. 
+	private TextField ballScoreField;
+	private TextField cannonScoreField;
+	private TextField timeField;
 	
+	// Defines integers to hold the ball and player's score values. 
 	private int ballScore = 0;
 	private int cannonScore = 0;
 
+	/*
+	The BulletBounce() constructor:
+		Description: 
+			- calls several subfunctions to initalize a BulletBounce() object. 
+		Preconditions:
+			N/A.
+		Postconditions:
+			- Returns an initalized instance of BulletBounce(), which will be running it's main loop (see start() and run() for details).
+	*/
 	public BulletBounce()
 	{
+		// Instantiates the main frame object.
 		BulletFrame = new Frame();
 		
 		// Sets the Frame()'s layout to null.
@@ -224,10 +297,16 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	}
 
 
-
-
+	/*
+	The start() method:
+		Description: 
+			- Starts the current thread, checking to see if it exists in the process (this prevents the thread from somehow being overwritten, if this method is ran twice.
+		Preconditions:
+			N/A.
+		Postconditions:
+			- Starts the main loop (see run() for details).
+	*/
 	private void start() {
-		
 		if (thread == null) {
 			thread = new Thread(this);
 			thread.start();
@@ -243,7 +322,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		Preconditions:
 			- N/A.
 		Postconditions:
-			- Mutates some mutable values inside of GUIBounceII(), mostly through the use of Ball()*
+			- Mutates some mutable values inside of BulletBounce(), mostly through the use of Ball()*
 			* other components can be dynamically resized on their own, due to utilizing layout managers.
 	*/
 	private void makeSheet()
@@ -251,8 +330,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Makes sure that <ball> is instantiated before continuing.
 		if (ball != null)
 		{
-			// Attempts to resize the canvas using <ball_panel>'s size,
-			// 
+			// Attempts to resize the canvas using <ball_panel>'s size.
 			if (!ball.tryResizeCanvas(ball_panel.getWidth(), ball_panel.getHeight())) {
 				BulletFrame.setSize(oldWinWidth, oldWinHeight);
 				BulletFrame.validate();
@@ -261,6 +339,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 			}
 		}
 		
+		// Returns, ending the function.
 		return;
 	}
 
@@ -269,115 +348,154 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	/*
 	The initComponents() method:
 		Description: 
-			- Instantiates all component objects used by GUIBounceII(),
+			- Instantiates all component objects used by BulletBounce(),
 				+ also adds all components to their relevant listeners. 
 		Preconditions:
 			- Must be called after makeSheet().
 		Postconditions:
-			- Populates all object-associated variables with their proper values, and adds them to implemented listeners of GUIBounceII().
+			- Populates all object-associated variables with their proper values, and adds them to implemented listeners of BulletBounce().
 	*/
 	private void initComponents() throws Exception, IOException {
 		
+		// Initalizes the menu bar.
 		menuBar = new MenuBar();
 		
-		// Initalizes each control button (with proper labels)
+		// Initalizes <menuBar>'s first submenu, controls,
+		// - this codeblock also initalizes each associated menuitem,
+		// - this codeblock also adds a seperator between 'run, pause' and 'reset, quit'.
 		menuControl = new Menu("Controls");
 		Run         = menuControl.add(new MenuItem("Run", new MenuShortcut(KeyEvent.VK_R)));
 		Pause       = menuControl.add(new MenuItem("Pause", new MenuShortcut(KeyEvent.VK_P)));
 		menuControl.addSeparator();
-		Reset       = menuControl.add(new MenuItem("Reset"));
+		Reset       = menuControl.add(new MenuItem("Restart"));
 		Quit        = menuControl.add(new MenuItem("Quit"));
 		menuBar.add(menuControl);
 		
+		// Initalizes <menuBar>'s second submenu, size. 
 		menuSize = new Menu("Size");
 		
+		// Initalizes <menuSize>'s first submenu, sizes,
+		// - this codeblock also initalizes each associated menuitem.
 		menuSizeSelector = new Menu("Sizes");
 		sizeXSmall       = new CheckboxMenuItem("Extra Small");
 		menuSizeSelector.add(sizeXSmall);
+		sizeXSmall.addItemListener(this);
+		
 		sizeSmall        = new CheckboxMenuItem("Small");
 		menuSizeSelector.add(sizeSmall);
+		sizeSmall.addItemListener(this);
+		
 		sizeMedium       = new CheckboxMenuItem("Medium");
 		menuSizeSelector.add(sizeMedium);
+		sizeMedium.addItemListener(this);
+		
 		sizeLarge        = new CheckboxMenuItem("Large");
 		menuSizeSelector.add(sizeLarge);
+		sizeLarge.addItemListener(this);
+		
 		sizeXLarge       = new CheckboxMenuItem("Extra Large");
 		menuSizeSelector.add(sizeXLarge);
+		sizeXLarge.addItemListener(this);
 		menuSize.add(menuSizeSelector);
 		
 		
-		sizeXSmall.addItemListener(this);
-		sizeSmall.addItemListener(this);
-		sizeMedium.addItemListener(this);
-		sizeLarge.addItemListener(this);
-		sizeXLarge.addItemListener(this);
-
-
 
 		
+
+		// Initalizes <menuSize>'s second submenu, speeeds,
+		// - this codeblock also initalizes each associated menuitem.
 		menuSpeed  = new Menu("Speeds");
 		speedXSlow       = new CheckboxMenuItem("Extra Slow");
 		menuSpeed.add(speedXSlow);
+		speedXSlow.addItemListener(this);
+		
 		speedSlow        = new CheckboxMenuItem("Slow");
 		menuSpeed.add(speedSlow);
+		speedSlow.addItemListener(this);
+		
 		speedMedium       = new CheckboxMenuItem("Medium");
 		menuSpeed.add(speedMedium);
+		speedMedium.addItemListener(this);
+		
 		speedFast        = new CheckboxMenuItem("Fast");
 		menuSpeed.add(speedFast);
+		speedFast.addItemListener(this);
+		
 		speedXFast       = new CheckboxMenuItem("Extra Fast");
 		menuSpeed.add(speedXFast);		
-		menuSize.add(menuSpeed);
-		menuBar.add(menuSize);
-		
-		
-		speedXSlow.addItemListener(this);
-		speedSlow.addItemListener(this);
-		speedMedium.addItemListener(this);
-		speedFast.addItemListener(this);
 		speedXFast.addItemListener(this);
 		
+		menuSize.add(menuSpeed);
+		menuBar.add(menuSize);
+	
+
 		
+		
+		// Initalizes <menuBar>'s last submenu, environments,
+		// - this codeblock also initalizes each associated menuitem.
 		menuEnvironment = new Menu("Environments");
 		mercury         = new CheckboxMenuItem("Mercury");
 		menuEnvironment.add(mercury);
+		mercury.addItemListener(this);
+		
 		venus           = new CheckboxMenuItem("Venus");
 		menuEnvironment.add(venus);
+		venus.addItemListener(this);
+		
 		earth           = new CheckboxMenuItem("Earth");
 		menuEnvironment.add(earth);
+		earth.addItemListener(this);
+		
 		earthsMoon      = new CheckboxMenuItem("Earth's Moon");
 		menuEnvironment.add(earthsMoon);
+		earthsMoon.addItemListener(this);
+		
 		mars            = new CheckboxMenuItem("Mars");
 		menuEnvironment.add(mars);
+		mars.addItemListener(this);
+		
 		jupiter         = new CheckboxMenuItem("Jupiter");
 		menuEnvironment.add(jupiter);
+		jupiter.addItemListener(this);
+		
 		saturn          = new CheckboxMenuItem("Saturn");
 		menuEnvironment.add(saturn);
+		saturn.addItemListener(this);
+		
 		uranus          = new CheckboxMenuItem("Uranus");
 		menuEnvironment.add(uranus);
+		uranus.addItemListener(this);
+		
 		neptune         = new CheckboxMenuItem("Neptune");
 		menuEnvironment.add(neptune);
+		neptune.addItemListener(this);
+		
 		pluto           = new CheckboxMenuItem("Pluto");
 		menuEnvironment.add(pluto);
+		pluto.addItemListener(this);
 		menuBar.add(menuEnvironment);
 		
 		
-		mercury.addItemListener(this);
-		venus.addItemListener(this);
-		earth.addItemListener(this);
-		earthsMoon.addItemListener(this);
-		mars.addItemListener(this);
-		jupiter.addItemListener(this);
-		saturn.addItemListener(this);
-		uranus.addItemListener(this);
-		neptune.addItemListener(this);
-		pluto.addItemListener(this);
-		
-		
-		// Sets radio-button default values.
+		// Sets each radio-button set's default values.
 		sizeMedium.setState(true);
 		speedMedium.setState(true);
 		earth.setState(true);
+		Pause.setEnabled(false);
 		
-		// Sets the constant value(s) associated with the speed scrollBar(),
+		
+		// Initalizes the program's information labels. 
+		velocityLabel = new Label("Velocity", Label.CENTER);
+		angleLabel    = new Label("Angle", Label.CENTER);
+		ballLabel     = new Label  ("Ball Score");
+		cannonLabel   = new Label("Player Score");
+		timeLabel     = new Label("Time");
+		messageLabel  = new Label("");
+		ballScoreField   = new TextField("0");
+		cannonScoreField = new TextField("0");
+		timeField        = new TextField("0");
+		
+		
+		// Sets the constant value(s) associated with the velocity scrollBar(),
 		// - also changes the background color of this component to gray.
 		velocityBar = new Scrollbar(Scrollbar.HORIZONTAL);
 		velocityBar.setMaximum(SB_MAX_VELOCITY + SB_VIS);
@@ -386,7 +504,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		velocityBar.setBackground(Color.gray);
 
 
-		// Sets the constant value(s) associated with the size scrollBar(),
+		// Sets the constant value(s) associated with the angle scrollBar(),
 		// - also changes the background color of this component to gray.
 		angleBar = new Scrollbar(Scrollbar.HORIZONTAL);
 		angleBar.setMaximum(SB_ANGLE_MAX + SB_VIS);
@@ -394,17 +512,20 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		angleBar.setValue(SB_ANGLE);
 		angleBar.setBackground(Color.gray);
 		
-		
+		// Disables each of the cosmetic text fields (as they are not meant to have text entered into them).
 		ballScoreField.setEnabled(false);
 		cannonScoreField.setEnabled(false);
 		timeField.setEnabled(false);
-	
+		
+		
+		// Sets each label's color to light gray.
 		ballLabel.setBackground(Color.lightGray);
 		cannonLabel.setBackground(Color.lightGray);
 		timeLabel.setBackground(Color.lightGray);
 		messageLabel.setBackground(Color.lightGray);
 
-		// Initalizes <gbl> and <gbc>, which are used together to constrain components within GUIBounceII().
+
+		// Initalizes <gbl> and <gbc>, which are used together to constrain components within BulletBounce().
 		GridBagLayout gbl = new GridBagLayout();
 		gbc               = new GridBagConstraints();
 
@@ -451,6 +572,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		velocityBar.addAdjustmentListener(this);
 		angleBar.addAdjustmentListener(this);
 		
+		// Adds action listeners to any regular MenuItem() instances. 
 		Run.addActionListener(this);	
 		Pause.addActionListener(this);
 		Reset.addActionListener(this);
@@ -491,6 +613,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Finally initalizes <ball>, since the screen is populated enough for it to safely be instantiated. 
 		ball = new Ball(size, ball_panel.getWidth(), ball_panel.getHeight());
 		ball_panel.add("Center", ball);
+		// Sets Ball()'s default values.
 		ball.setCannonAngle(SB_ANGLE_MAX - SB_ANGLE + SB_ANGLE_MIN);
 		ball.setGrav(ball.gravRule("Earth"));
 		ball.setProjectileVel(velocityBar.getValue() * .005f);
@@ -533,11 +656,11 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	/*
 	The stop() method:
 		Description: 
-			- Serves as a destructor for GUIBounceII(), and a terminator for it's internal loop (see run()).
+			- Serves as a destructor for BulletBounce(), and a terminator for it's internal loop (see run()).
 		Preconditions:
 			- the start() method must have had been ran already. 
 		Postconditions:
-			- Frees memory taken up by GUIBounceII()'s member variables and listeners, before returning.
+			- Frees memory taken up by BulletBounce()'s member variables and listeners, before returning.
 	*/
 	public void stop() {
 		
@@ -578,6 +701,18 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		pluto.removeItemListener(this);
 		
 		
+				
+		// Disposes of either scrollbar's listeners.
+		velocityBar.removeAdjustmentListener(this);
+		angleBar.removeAdjustmentListener(this);
+		
+		// Disposes of the control menu's listeners.
+		Run.removeActionListener(this);	
+		Pause.removeActionListener(this);
+		Reset.removeActionListener(this);
+		Quit.removeActionListener(this);
+		
+		
 		// Calls cleanup functions, before ending the function.
 		BulletFrame.dispose();
 		System.exit(0);
@@ -597,7 +732,6 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		Postconditions:
 			- The program is terminated alongside this function returning (see stop() for details).
 	*/
-	int temp=0;
 	@Override
 	public void run() {
 		// Iterates so long as <isRunning> is true.
@@ -609,39 +743,56 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 				e.printStackTrace();
 			}
 			
-			// Sleeps for <delay>, which serves as an interpretation of the current <ball> speed.
+			// Updates the game's elements whenever <isPaused> is false.
 			if (!isPaused)
 			{
+				// Increments the milliseconds counter.
 				time_ms += 1;
 
+				// Updates the Ball() object, depending on the internal value of <delay>.
 				if ((time_ms % (int)(delay/2)) == 0)
 				{
 					ball.updateBall();
 				}
+				// Updates Ball()'s primary physic's object.
 				ball.updateProjectile();
 				
+				// Displays any messages that Ball() has stored from previous iterations. 
 				if (ball.hasMessage()) {
 					messageLabel.setText(ball.getMessage());
 				}
+				// Checks to see if the gamestate must be reset, and increments points accordingly. 
 				if (ball.ballWasHit()) {
 					cannonScore++;
 					cannonScoreField.setText(Integer.toString(cannonScore));
+					ball.setMessage("You scored a point!");
 					ball.reset();
 				} else if (ball.cannonWasHit()) {
 					ballScore++;
 					ballScoreField.setText(Integer.toString(ballScore));
+					ball.setMessage("The ball scored a point...");
 					ball.reset();
 				}
 				
+				// Increments <time_s> whenever an arbitrary value has been reached,
+				// - this value is roughly accurate to the passing of real time, but is not meant to be equivalent. 
 				if((time_ms % 350) == 0)
 				{
 					time_s += 1;
 					timeField.setText(Integer.toString(time_s));
-					time_ms -= 350;
+					time_ms = 0;
 				}
-
+				
+				// Finally, repaints the screen. 
 				ball.repaint();
 			}
+			// Otherwise, repaints the screen whenever the reset button has been pressed. 
+			else if (screenReset)
+			{
+				ball.repaint();
+				screenReset = false;
+			}
+			
 			// Lets the thread sleep for one tick, allowing for interupts.
 			try {
 				Thread.sleep(1);
@@ -655,12 +806,27 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	}
 	
 
+
+/*
+The itemStateChanged() method:
+	Description: 
+		- handles selections of any CheckboxMenuItem() instances.
+	Preconditions:
+		- the start() method must have had been ran already. 
+	Postconditions:
+		- Passes string values to various methods (see methods with the suffix 'rule'.
+*/
  @Override
  public void itemStateChanged(ItemEvent e)
  {
+	// Stores the currently selected checkbox in a dummy value.
 	CheckboxMenuItem dummy = (CheckboxMenuItem)e.getSource();
+	
+	// Fetches that Checkbox's current text.
 	radioButton = dummy.getLabel();
 	
+	
+	// Compares the selected value against the submenu 'sizes'.
 	if (dummy == sizeXSmall || dummy == sizeSmall || dummy == sizeMedium || dummy == sizeLarge || dummy == sizeXLarge)
 	{
 		// Changes the ball object's current size, if able.
@@ -673,13 +839,15 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 			sizeXLarge.setState(false);
 			dummy.setState(true);
 		}
+		// Reverts the menu selection, otherwise.
 		else dummy.setState(false);;
 
 	}
 	
+	// Compares the selected value against the submenu 'speeds'.
 	else if (dummy == speedXSlow || dummy == speedSlow || dummy == speedMedium || dummy == speedFast || dummy == speedXFast)
 	{
-		// Changes the current game speed.
+		// Changes the current game speed, if able.
 		delay = speedRule(radioButton);
 		speedXSlow.setState(false);
 		speedSlow.setState(false);
@@ -689,6 +857,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		dummy.setState(true);
 
 	}
+	// Compraes the selected value against the submenu 'environment'. 
 	else if (dummy == mercury || dummy == venus || dummy == earth || dummy == earthsMoon || dummy == mars || dummy == jupiter ||
 	dummy == saturn || dummy == uranus || dummy == neptune || dummy == pluto)
 	{
@@ -706,13 +875,26 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		pluto.setState(false);
 		dummy.setState(true);
 	};
+	
+	// Returns, exiting the function.
 	return; 
  };
 
-
-	public int speedRule(String key)
+	/*
+	The speedRule() method:
+		Description: 
+			- Associates string values with numeric speeds.
+		Preconditions:
+			- String <key> - must be a valid string value. 
+		Postconditions:
+			- Returns the relevant integer value for any given CheckboxMenuItem relating to speed.
+	*/
+	private int speedRule(String key)
 	{
+		// Defines a temporary value (defaults to -1 for easy errorhandling).
 		int value = -1;
+		
+		// Checks to see if the value passed to this method matches a switch case.
 		switch(key)
 		{
 			case("Extra Slow"):
@@ -731,6 +913,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 				value = 4;
 				break;
 		}
+		// Returns value, regardless of whether or not a match was made.
 		return value;
 	};
 
@@ -742,7 +925,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		Preconditions:
 			- the start() method must have had been ran already. 
 		Postconditions:
-			- Alters relevant values within GUIBounceII(), or, Ball() (depending on the bar that was changed).
+			- Alters relevant values within BulletBounce(), or, Ball() (depending on the bar that was changed).
 	*/
 	@Override
 	public void adjustmentValueChanged(AdjustmentEvent e) {
@@ -750,10 +933,12 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Stores the current Scrollbar() being changed via getSource().
 		Scrollbar sb = (Scrollbar) e.getSource();
 		
-		System.out.println(sb.getValue());
-		
+		// Checks to see whether or not <sb> is the angleBar.
 		if (sb == angleBar) {
+			// Tries to change the cannon's current angle, if so.
 			ball.setCannonAngle(SB_ANGLE_MAX - sb.getValue() + SB_ANGLE_MIN);
+			
+		// Otherwise, changes ball()'s current velocity.
 		} else if (sb == velocityBar) {
 			ball.setProjectileVel(sb.getValue() * .005f);
 		}
@@ -767,11 +952,11 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	/*
 	The actionPerformed() method:
 		Description: 
-			- Handles interaction with any of the three Button() instances held within this extension of Frame().
+			- Handles interaction with any of the four MenuItem() instances held within <menuBar>.
 		Preconditions:
 			- the start() method must have had been ran already.
 		Postconditions:
-			- Enables or Disables iteration of <ball>, or otherwise terminates the program if the quit Button() was selected.
+			- Enables or Disables iteration of <ball>, resets <ball>, or otherwise terminates the program if quit was selected.
 	*/
 	@Override
 	public void actionPerformed(ActionEvent e)
@@ -779,22 +964,33 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		// Stores the source of the event via getSource().
 		Object source = e.getSource();
 		
+		// Checks to see if run was pressed (only is properly true whenever run is enabled).
 		if(source == Run)
 		{
+			// If so, the main loop is allowed to properly iterate, and run is toggled off (pause is toggled on).
 			isPaused = false;
+			ball.setPaused(isPaused);
 			Run.setEnabled(false);
 			Pause.setEnabled(true);
 		}
+		// Otherwise, checks to see if paused was pressed (only is properly true whenever pause is enabled).
 		else if(source == Pause)
 		{
+
+			// If so, the main loop is paused, and run is toggled on (pause is toggled off).
 			isPaused = true;
+			ball.setPaused(isPaused);
 			Run.setEnabled(true);
 			Pause.setEnabled(false);
 		}
+		
+		// Otherwise, checks to see if reset was pressed (only is properly true whenever reset is enabled).
 		else if(source == Reset)
 		{
-			// Reset function goes here.
-		}		
+			ball.reset();
+			screenReset = true;
+		}
+		// Otherwise, quit must have had been selected. Stop() is called, which terminates the program.		
 		else if(source == Quit)
 		{
 			stop();
@@ -837,7 +1033,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 	/*
 	The windowClosing() method:
 		Description: 
-			- Handles the first steps of an instance of GUIBounceII() being terminated (from the user clicking on the Frame()'s [x]).
+			- Handles the first steps of an instance of BulletBounce() being terminated (from the user clicking on the Frame()'s [x]).
 		Preconditions:
 			- the start() method must have had been ran already.
 		Postconditions:
@@ -851,8 +1047,7 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 		return;
 	}
 
-	// Below are overwritten (but unimplemented) methods of the Frame() superclass
-	// and it's listeners.
+	// Below are overwritten (but unimplemented) methods of this class's implemented listeners.
 	public void componentMoved(ComponentEvent e)  {return;}
 	public void componentShown(ComponentEvent e)  {return;}
 	public void componentHidden(ComponentEvent e) {return;}
@@ -866,66 +1061,138 @@ class BulletBounce implements ActionListener, WindowListener, ComponentListener,
 
 
 
+
+
+/*
+The PhysicsObject() class:
+	Description: 
+		- Acts as a wrapper for scalar value(s), which construct custom rectangles. Also contains various collision macro functions.
+	Preconditions:
+		- see constructors.
+	Postconditions:
+		- Passes string values to various methods (see methods with the suffix 'rule'.
+*/
 class PhysicsObject
 {
+	// Defines the default velocity vector components for each PhysicsObject() instance,
+	// - used when updating certain PhysicsObject() instances which need to 'move' across a canvas.
 	private float velocityX = 0;
 	private float velocityY = 0;
 	
+	// Defines the default X, Y, Width, and Height of each PhysicsObject() instance,
+	// - used to construct a crude Rectangle() replica for collision code with PhysicsLayer() instances. 
 	private float posX = 0;
 	private float posY = 0;
 	private float width = 0;
 	private float height = 0;
 	
+	// Defines two object pointers, representing the object's last horizontal and vertical collisions. 
 	private PhysicsObject lastHorCollision = null;
 	private PhysicsObject lastVerCollision = null;
 	
+	// Defines isStatic, which is an internal boolean used for determining whether or not an instance moves.
 	private boolean isStatic = false;
 	
-	public PhysicsObject(Rectangle bounds, boolean isStatic) {
+	
+	/*
+	The PhysicsObject() constructor(S):
+		Description: 
+			- Creates a new PhysicsObject, taking either a fully created rectangle, or, a single boolean value.
+		Preconditions (maximum of 2):
+			- (1) Rectangle <bounds>   - the X, Y, Width, and Height values to be copied into this Object, - optional
+			- (2) boolean   <isStatic> - determines whether or not this instance is to be kept still.
+		Postconditions:
+			- Returns a partially (or fully) instantiated instance of PhysicsObject().
+	*/
+	public PhysicsObject(Rectangle bounds, boolean isStatic)
+	{
+		// Transposes values from <bounds> as default values.
 		posX = (float)bounds.getX();
 		posY = (float)bounds.getY();
 		width = (float)bounds.getWidth();
 		height = (float)bounds.getHeight();
+		
+		// Transposes isStatic as a default value.
 		this.isStatic = isStatic;
+		
+		// Returns, ending the function.
+		return;
 	}
-	
 	public PhysicsObject(boolean isStatic) {
+		// Transposes isStatic as a default value.
 		this.isStatic = isStatic;
+		
+		// Returns, ending the function.
+		return;
 	}
+
 	
-	public void setStatic(boolean isStatic) {
-		this.isStatic = isStatic;
-	}
-	public boolean contains(Point p) {
+	
+	/*
+	The contains() method:
+		Description: 
+			- Determines whether or not an arguement is within the given PhysicsObject() instance.
+		Preconditions (maximum of 1):
+			- (1) Point              <p> - the point to be compared against,
+			- (1) PhysicsObject <object> - the PhysicsObject to be compared against.
+		Postconditions:
+			- Returns <true> when the arguement given is inside the PhysicsObject(), and <false> otherwise.
+	*/
+	public boolean contains(Point p)
+	{
+		boolean value = false;
 		if ((posX < p.getX()) 		  &&
 			(posX + width > p.getX()) &&
 			(posY < p.getY())		  &&
-			(posY + height > p.getY())) {
-			return true;
-		} else {
-			return false;
-		}
+			(posY + height > p.getY()))
+			value =  true;
+		return value;
 	}
-	public boolean contains(PhysicsObject object) {
+	public boolean contains(PhysicsObject object)
+	{
+		boolean value = false;
 		if ((posX <= object.getX()) 							&&
 			(posX + width >= object.getX() + object.getWidth()) &&
 			(posY <= object.getY())								&&
-			(posY + height >= object.getY() + object.getHeight())) {
-			return true;
-		} else {
-			return false;
-		}
+			(posY + height >= object.getY() + object.getHeight()))
+			value = true;
+		
+		return value;
 	}
-	public boolean intersects(PhysicsObject object) {
+	
+	/*
+	The intersects() method:
+		Description: 
+			- Determines whether or not an arguement is partially within the given PhysicsObject() instance.
+		Preconditions (maximum of 1):
+			- (1) PhysicsObject <object> - the PhysicsObject to be compared against.
+		Postconditions:
+			- Returns <true> when the arguement given overlaps the PhysicsObject(), and <false> otherwise.
+	*/
+	public boolean intersects(PhysicsObject object)
+	{
+		boolean value = false;
 		if ((posX + width >= object.getX())				&&
 			(posX <= object.getX() + object.getWidth()) &&
 			(posY + height >= object.getY()) 			&&
-			(posY <= object.getY() + object.getHeight())) {
-			return true;
-		} else {
-			return false;
-		}
+			(posY <= object.getY() + object.getHeight()))
+			value = true;
+		
+		return value;
 	}
+	
+	
+	
+	/*
+	The METHOD BLOCK: GET:
+		Description: 
+			- Methods with the 'get' prefix fetch variables described above,
+			- due to the repetetive nature of these definitions, they have been clumped together. 
+		Preconditions:
+			- N/A.
+		Postconditions:
+			- Return relevant components (see each method's suffix).
+	*/
 	public float getX() {
 		return posX;
 	}
@@ -938,29 +1205,38 @@ class PhysicsObject
 	public float getHeight() {
 		return height;
 	}
-	public void setVelocityX(float x) {
-		velocityX = x;
-	}
-	public void setVelocityY(float y) {
-		velocityY = y;
-	}
 	public float getVelocityX() {
 		return velocityX;
 	}
 	public float getVelocityY() {
 		return velocityY;
 	}
-	public void setLocationX(float horPos) {
-		posX = horPos;
+	// Honorary 'get' method, with boolean 'is...' notation, instead.
+	public boolean isStatic() {
+		return isStatic;
 	}
-	public void setLocationY(float verPos) {
-		posY = verPos;
+	public PhysicsObject getLastHorCollision() {
+		return lastHorCollision;
 	}
-	public void addLocationX(float value) {
-		posX += value;
+	public PhysicsObject getLastVerCollision() {
+		return lastVerCollision;
 	}
-	public void addLocationY(float value) {
-		posY += value;
+	
+	/*
+	The METHOD BLOCK: SET:
+		Description: 
+			- Methods with the 'set' prefix overwrite variables described above,
+			- due to the repetetive nature of these definitions, they have been clumped together. 
+		Preconditions (maximum of 1):
+			- (1) <...> - the value to overwrite the given component (see method's suffix for typing). 
+		Postconditions:
+			- Overwrites the relevant component (see each method's suffix).
+	*/
+	public void setVelocityX(float x) {
+		velocityX = x;
+	}
+	public void setVelocityY(float y) {
+		velocityY = y;
 	}
 	public void setWidth(float width) {
 		this.width = width;
@@ -968,93 +1244,161 @@ class PhysicsObject
 	public void setHeight(float height) {
 		this.height = height;
 	}
+	public void setLocationX(float horPos) {
+		posX = horPos;
+	}
+	public void setLocationY(float verPos) {
+		posY = verPos;
+	}
+	public void setStatic(boolean isStatic) {
+		this.isStatic = isStatic;
+	}
 	public void setHorCollision(PhysicsObject collision) {
 		lastHorCollision = collision;
 	}
-	// Returns null if there was no collision
-	public PhysicsObject getLastHorCollision() {
-		return lastHorCollision;
-	}
-	// Returns null if there was no collision
 	public void setVerCollision(PhysicsObject collision) {
 		lastVerCollision = collision;
 	}
-	public PhysicsObject getLastVerCollision() {
-		return lastVerCollision;
+	
+	/*
+	The METHOD BLOCK: ADD:
+		Description: 
+			- Methods with the 'add' prefix combine their <value> with their named suffix (via addition),
+			- due to the repetetive nature of these definitions, they have been clumped together. 
+		Preconditions:
+			- N/A.
+		Postconditions:
+			- Combine <value> with their relevant values via addition (see each method's suffix).
+	*/
+	public void addLocationX(float value) {
+		posX += value;
 	}
-	public boolean isStatic() {
-		return isStatic;
+	public void addLocationY(float value) {
+		posY += value;
 	}
 }
 
+
+
+
+/*
+The PhysicsLayer() class:
+	Description: 
+		- Acts as a wrapper for vector instances, which relate to the physics calculations meant to be done with PhysicsObject() instances,
+		- Each instance of PhysicsLayer() can hold another layer (which it can be 'touching'). 
+	Preconditions:
+		- (N/A) see constructors.
+	Postconditions:
+		- Returns an EMPTY instance of PhysicsLayer().
+*/
 class PhysicsLayer
 {
-	private Vector<PhysicsLayer> touchingLayers = new Vector<PhysicsLayer>();
+	// Defines both of the Vector "Layers" used by PhysicsLayer(),
+	// - by default, both of these Vectors are empty.
+	private Vector<PhysicsLayer> touchingLayers = new Vector<PhysicsLayer>();	
+	private Vector<PhysicsObject> colliders     = new Vector<PhysicsObject>();
 	
-	private Vector<PhysicsObject> colliders = new Vector<PhysicsObject>();
+	// This constructor is left blank, as PhysicsLayer() is used as a container object.
+	public PhysicsLayer() {return;}
 	
-	public PhysicsLayer() {
-		
-	}
-	public void addTouchingLayer(PhysicsLayer layer) {
+	
+	/*
+	The METHOD BLOCK: ADD:
+		Description: 
+			- Methods with the 'add' prefix append instances by reference to their given layer (see method suffix),
+			- due to the repetetive nature of these definitions, they have been clumped together. 
+		Preconditions (at maximum 1):
+			- (1) <...> - the value to be appended to the suffix layer.
+		Postconditions:
+			- Appends the <...> instance by reference to the given layer (see method suffix).
+	*/
+	public void addTouchingLayer(PhysicsLayer layer)
+	{
 		touchingLayers.add(layer);
 	}
-	public void removeTouchingLayer(PhysicsLayer layer) {
-		touchingLayers.remove(layer);
-	}
-	public void addPhysicsObject(PhysicsObject object) {
+	public void addPhysicsObject(PhysicsObject object)
+	{
 		colliders.add(object);
 	}
-	public void removePhysicsObject(PhysicsObject object) {
+
+	/*
+	The METHOD BLOCK: REMOVE:
+		Description: 
+			- Methods with the 'remove' prefix remove instances by reference from their given layer (see method suffix),
+			- due to the repetetive nature of these definitions, they have been clumped together. 
+		Preconditions (at maximum 1):
+			- (1) <...> - the value to be removed from the suffix layer.
+		Postconditions:
+			- Removes the <...> instance by reference from the given layer (see method suffix).
+	*/
+	public void removeTouchingLayer(PhysicsLayer layer)
+	{
+		touchingLayers.remove(layer);
+	}
+	public void removePhysicsObject(PhysicsObject object)
+	{
 		colliders.remove(object);
 	}
-	public void updatePhysics() {
-		for (PhysicsObject collider : colliders) {
-			
+	
+	
+	/*
+	The updatePhysics() method:
+		Description: 
+			- Iterates over every instance inside of <colliders>, comparing their contents against <touchingLayers>,
+			- most of the collision math is handled in handleHorizontalCollisons() and handleVerticalCollisions() respectively.
+		Preconditions:
+			- N/A.
+		Postconditions:
+			- Informs objects of what they will collide with (if anything), and moves PhysicsObject() instances inside of <colliders> along their velocity vectors. 
+	*/
+	public void updatePhysics()
+	{
+		// Iterates over every member of <colliders>
+		for (PhysicsObject collider : colliders)
+		{
+			// Resets the current entry, <collider>'s collision memory.
 			collider.setHorCollision(null);
 			collider.setVerCollision(null);
 			
-			if (!collider.isStatic()) {
-				
+			// Shifts the object (if it is not static).
+			if (!collider.isStatic())
+			{
+				// Moves in the X and Y directions, if nothing is ran into.
 				handleHorizontalCollisions(collider);
-				if (collider.getLastHorCollision() == null) {
+				if (collider.getLastHorCollision() == null)
 					collider.addLocationX(collider.getVelocityX());
-				}
-				
 				handleVerticalCollisions(collider);
-				if (collider.getLastVerCollision() == null) {
+				if (collider.getLastVerCollision() == null)
 					collider.addLocationY(collider.getVelocityY());
-				}
 			}
 		}
 	}
 	
 	/*
-	The getFirstHorizontalCollision() method:
+	The handleHorizontalCollisions() method:
 		Description: 
-			- Uses a predetermined logic gate to return the closest X collision with <ball> within <rects>. 
+			- Uses a predetermined logic gate to assess whether or not two objects on differening layers have collided on the Y axis. 
 			* this function is synchronized, for use in threads.
 		Preconditions:
-			- the constructor (Ball()) has already been ran,
-			<horVel> : must be a valid integer value. (immutable horizontal velocity)
+			<PhysicsObject> : must be a valid Physics Object. (object to be compared against collision layers)
 		Postconditions:
-			- Returns the closest X collisions found around <ball>,
-			  + otherwise, returns infinity instead.
+			- Updates the collision value(s) of movingObj().
 	*/
 	private synchronized void handleHorizontalCollisions(PhysicsObject movingObj)
 	{
-		// 
+		// Sets a default constant related to this function (see conditionals below). 
 		float closestBoundPosition = Float.POSITIVE_INFINITY;
 		
+		// Repeats this process for as many touching layers as the physics layer has.
 		for (int i = 0; i < touchingLayers.size(); i++)
 		{
-			// Iterates a specific comparison over every Rectangle() in <rects>.
+			// Itterates a specific comparison over every PhysicsObject() in <touchingLayers>.
 			for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
 			{					
 				if (movingObj != other)
 				{
 					// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
-					// If so, the <rect> of this iteration's X value becomes the new <closesetBoundPosition>.
+					// If so, the <other> of this iteration's X value becomes the new <HorCollison>.
 					if(
 						(other.getX() > movingObj.getX() + movingObj.getWidth() / 2)                                              		 &&
 						(other.getX() - (movingObj.getX() + movingObj.getWidth()) < closestBoundPosition)                         		 &&
@@ -1079,35 +1423,34 @@ class PhysicsLayer
 			}
 		}
 		
+		// Returns, ending the function.
 		return;
 	}
 	
 	/*
-	The getFirstVerticalCollision() method:
+	The handleVerticalCollisions() method:
 		Description: 
-			- Uses a predetermined logic gate to return the closest Y collision with <ball> within <rects>. 
+			- Uses a predetermined logic gate to assess whether or not two objects on differening layers have collided on the Y axis. 
 			* this function is synchronized, for use in threads.
 		Preconditions:
-			- the constructor (Ball()) has already been ran,
-			<verVel> : must be a valid integer value. (immutable horizontal velocity)
+			<PhysicsObject> : must be a valid Physics Object. (object to be compared against collision layers)
 		Postconditions:
-			- Returns the closest Y collisions found around <ball>,
-			  + otherwise, returns infinity instead.
+			- Updates the collision value(s) of movingObj().
 	*/
 	private synchronized void handleVerticalCollisions(PhysicsObject movingObj)
 	{
-		// 
+		// Sets a default constant related to this function (see conditionals below). 
 		float closestBoundPosition = Float.POSITIVE_INFINITY;
 		
 		for (int i = 0; i < touchingLayers.size(); i++)
 		{
-			// Iterates a specific comparison over every Rectangle() in <rects>.
+			// Itterates a specific comparison over every PhysicsObject() in <touchingLayers>.
 			for (PhysicsObject other : touchingLayers.elementAt(i).colliders)
 			{
 				if (movingObj != other)
 				{
 					// This wad of conditionals determines whether or not a position is currently the closest possible to the given collision.
-					// If so, the <rect> of this iteration's Y value becomes the new <closesetBoundPosition>.
+					// If so, the <other> of this iteration's Y value becomes the new <VerCollison>.
 					if(
 						(other.getY() > movingObj.getY() + movingObj.getHeight() / 2)                                           	   &&
 						(other.getY() - (movingObj.getY() + movingObj.getHeight()) < closestBoundPosition)                      	   &&
@@ -1131,21 +1474,25 @@ class PhysicsLayer
 				}
 			}
 		}
-	
+		
+		// Returns, ending the function.
 		return;
 	}
 }
 
+
+
 /*
 The Ball() Class:
 	Description:
-		- serves as a canvas and logic center to display within GUIBounceII(),
+		- serves as a canvas and logic center to display within BulletBounce(),
 	    - by clicking on the canvas panel, the user can:
 		- hold mouse button 1 (left click), and drag to create a rectangle,
 			+ upon releasing left click, the rectangle is added to the screen,
 				* the ball bouncing around within the canvas panel will ricochet off of this rectangle,
 				* if the rectangle contained any other, smaller rectangles entirely, they will be deleted,
-		- click the mouse once on a rectangle to delete it from the canvas.
+		- click the mouse once on a rectangle to delete it from the canvas,
+		- click mouse button 1 (left click) on the cannon's graphics to fire a physics object.
 			
 	Extends:
 		- Canvas(), from java.awt...
@@ -1162,23 +1509,25 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	// - this variable is FINAL, and cannot be changed.
 	static final long serialVersionUID = 11L;
 	
-	private final int CANNON_PIVOT_SIZE = 40;
 	
-	private final int CANNON_WIDTH = 20;
-	private final int CANNON_LENGTH = 80;
+	// Defines various constants related to instantiation of the cannon's object(s). 
+	private final int CANNON_PIVOT_SIZE = 40; // - radius of the pivot,
+	private final int CANNON_WIDTH = 20;      // - width of the barrel,
+	private final int CANNON_LENGTH = 80;     // - length of the barrel,
+	private final int CANNON_SPACING = 10;    // - distance from the right of the screen.
 	
-	// Distance between the cannon's pivot and the edge of the screen
-	private final int CANNON_SPACING = 10;
-	
+	// Defines the width of each 'bounding box' PhysicsObject() instance.
 	private final int BOUND_WIDTH = 10;
 	
 	// Defines <BOUNCE_SPEED>, which is the internal stepping value for the primary vector object inside of Ball().
 	private final int BOUNCE_SPEED = 1;
 
+	// Defines the gravity offset, which modulates the constant values defined below.
+	private final float PIXELS_PER_METER = 0.002f;
+
 	
-	private final float PIXELS_PER_METER = 0.002f; // Find a good value once the projectile is implemented
-
-
+	// Defines the gravity values associated with each environment available within the program,
+	// - each value is multiplied by the constant PIXELS_PER_METER.
 	private final float MERCURY    = 3.70f 	* PIXELS_PER_METER;
 	private final float VENUS      = 8.87f 	* PIXELS_PER_METER;
 	private final float EARTH      = 9.81f 	* PIXELS_PER_METER;
@@ -1223,34 +1572,41 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	// Defines a Vector which stores all collision rectangles currently instantiated onto Ball().
 	private Vector<PhysicsObject> rects = new Vector<PhysicsObject>();
 	
-	// Defines two toggle-booleans, which control whether or not the mouse is currently active, and whether or not it is affecting <dragBox>.
-	private boolean dragBoxActive = false;
-	private boolean mouseActive = false;
-	private boolean cannonHit = false;
-	private boolean ballHit = false;
-	private boolean clickedOnce = false;
-	private boolean comingBack = false;
-	private boolean messageFlag = false;
-	private boolean queuedShot = false;
+	// Defines togglebooleans, which track various binary states.
+	private boolean dragBoxActive = false; // whether or not the dragBox is active,
+	private boolean mouseActive   = false; // whether or not the canvas has mouse focus,
+	private boolean cannonHit     = false; // whether or not the cannon was hit,
+	private boolean ballHit       = false; // whether or not the ball was hit,
+	private boolean clickedOnce   = false; // whether or not the player has clicked once already (for double-click-removal),
+	private boolean comingBack    = false; // whether or not the main physics object will be returning to the screen,
+	private boolean messageFlag   = false; // whether or not this instance of Ball() has a pending message,
+	private boolean queuedShot    = false; // whether or not a shot from the cannon is queued,
+	private boolean notMouseOne   = true;  // if a mouse button other than mouse one has been pressed,
+	private boolean programPaused = true;  // if the program currently is paused or not.
+	private boolean canHitCannon = false;  // whether or not a newly instanced cannon projectile can damage the cannon yet.
 	
-	// A flag that is set to true after an instance of the projectile leaves the cannon's bounding box initially
-	private boolean canHitCannon = false;
-	
+	// Defines a temp string, which holds messages to be sent by this instance of Ball().
 	private String message = "";
 
 	// Defines components used for doublebuffering.
 	private Image buffer; // - actual buffer image, <buffer>,
 	private Graphics g;   // - replacement graphical component, <g>.
 
+
+	// Defines a polygon and rectangle (bounding box for an oval) related to the cannon object.
 	private Polygon cannon = new Polygon();
-	
 	private Rectangle cannonPivot = new Rectangle(0, 0, CANNON_PIVOT_SIZE, CANNON_PIVOT_SIZE);
 	
+	// Defines a copy of the cannonAngle that Ball() retains.
 	private int cannonAngle = 0;
 	
+	// Defines the end position for the cannon's projectile, which is used to determine whether or not a cannonball will re-enter the screen.
 	private Point cannonEndPos = new Point();
 	
+	// Defines the current gravity value to be applied to the Y velocity of the cannon's projectile.
 	private float gravity = 1;
+	
+	// Defines the inital projectile velocity meant for the cannon's projectile.
 	private float projectileVel = 1;
 
 	/*
@@ -1281,7 +1637,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		ball.setLocationX(25);
 		ball.setLocationY(25);
 		
-		// Sets the current ball width and height (simplified to 'size' by GUIBounceII()).
+		// Sets the current ball width and height (simplified to 'size' by BulletBounce()).
 		ball.setWidth(ballSize);
 		ball.setHeight(ballSize);
 		
@@ -1292,8 +1648,10 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		this.addMouseListener(this);
 		this.addMouseMotionListener(this);
 		
+		// Appends <ball> to the <ballLayer>.
 		ballLayer.addPhysicsObject(ball);
 		
+		// Sets various constant values related to Ball()'s screen boundaries.
 		northBound.setLocationX(0);
 		northBound.setLocationY(-BOUND_WIDTH);
 		southBound.setLocationX(0);
@@ -1312,13 +1670,17 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		eastBound.setWidth(BOUND_WIDTH);
 		eastBound.setHeight(screenHeight);
 		
+		
+		// Appends each finished bound onto the screenBounds layer.
 		screenBounds.addPhysicsObject(northBound);
 		screenBounds.addPhysicsObject(southBound);
 		screenBounds.addPhysicsObject(westBound);
 		screenBounds.addPhysicsObject(eastBound);
 		
+		// Adds the cannon's hitbox to it's own layer.
 		cannonLayer.addPhysicsObject(cannonHitBox);
 		
+		// Links relevant layers together.
 		ballLayer.addTouchingLayer(screenBounds);
 		ballLayer.addTouchingLayer(boxLayer);
 		ballLayer.addTouchingLayer(cannonLayer);
@@ -1329,14 +1691,28 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		return;
 	}
 	
-	
+
+
+	/*
+	The reset() method:
+		Description: 
+			- flushes any mutable values that have not been set by the user, reverting the program to (nearly) defaults.
+		Preconditions:
+			- the constructor (Ball()) has already been ran.
+		Postconditions:
+			- Effectively resets the game (does not effect score).
+	*/	
 	public void reset() {
+		// Flushes each entry <rects>
 		for (int i = rects.size() - 1; i > -1; i--) {
 			boxLayer.removePhysicsObject(rects.elementAt(i));
 			rects.remove(i);
 		}
+		// Resets contextual boolean values.
 		ballHit = false;
 		cannonHit = false;
+		
+		// Resets the ball's current position, and randomizes it's velocity. 
 		ball.setLocationX(25);
 		ball.setLocationY(25);
 		if (Math.random() > 0.5f)
@@ -1347,9 +1723,12 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			ball.setVelocityY(-1);
 		else
 			ball.setVelocityY(1);
+		
+		// Destroys the current projectile instance.
 		destroyProjectile();
 		
-		setMessage("");
+		// Returns, ending the function.
+		return;
 	}
 
 
@@ -1438,8 +1817,11 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	/*
 	The updateCannon() method:
 		Description: 
-			- Updates the position of the cannon relative to the screen dimensions 
-			  + sets up the polygon that represents the cannon
+			- Updates the position of object(s) related to the cannon object.
+		Preconditions:
+			- N/A.
+		Postconditions:
+			- Rebuilds the polygon and oval associated with the cannon object.
 	*/
 	private void updateCannon() {
 		// changes the cannon pivot's X and Y positions.
@@ -1449,11 +1831,14 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		// Resets the cannon's current positional values (allows for a proper transform).
 		cannon.reset();
 		
+		// Gets the radian that the current cannon angle equals.
 		double radAngle = cannonAngle * (float)Math.PI / 180;
 		
+		// Convers that radian value into horizontal and vertical values, using pythagorean theorem.
 		double horValue = Math.cos(radAngle);
 		double verValue = Math.sin(radAngle);
 		
+		// Transposes the cannon's end positions. 
 		cannonEndPos.x = (int)(cannonPivot.getX() + horValue * CANNON_LENGTH);
 		cannonEndPos.y = (int)(cannonPivot.getY() - verValue * CANNON_LENGTH);
 		
@@ -1477,6 +1862,7 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		(int)(cannonPivot.getX() + Math.round(verValue * CANNON_WIDTH / 2)),
 		(int)(cannonPivot.getY() + Math.round(horValue * CANNON_WIDTH / 2)));
 	
+		// Alters the cannon's hitbox to match the current iteration's coordinates. 
 		cannonHitBox.setLocationX((int)cannonPivot.getX() - CANNON_LENGTH);
 		cannonHitBox.setLocationY((int)cannonPivot.getY() - CANNON_LENGTH);
 		
@@ -1484,29 +1870,75 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		cannonPivot.x -= CANNON_PIVOT_SIZE / 2;
 		cannonPivot.y -= CANNON_PIVOT_SIZE / 2;
 	}
-	
-	
+
+
+
 	/*
-	The setCannonAngle() method:
-	 
-	*/
+	The METHOD BLOCK: SET:
+		Description: 
+			- Methods with the 'set' prefix overwrite variables described above,
+			- due to the repetetive nature of these definitions, they have been clumped together. 
+		Preconditions (maximum of 1):
+			- (1) <...> - the value to overwrite the given component (see method's suffix for typing). 
+		Postconditions:
+			- Overwrites the relevant component (see each method's suffix).
+	*/	
 	public void setCannonAngle(int angle) {
 		
 		cannonAngle = angle;
 		updateCannon();
 		repaint();
 	}
-	
-	
+	public void setPaused(boolean value)
+	{
+		programPaused = value;
+	};
+	public void setProjectileVel(float vel) {
+		projectileVel = vel;
+	}	
+	public void setMessage(String message) {
+		messageFlag = true;
+		this.message = message;
+	}
+	public void setGrav(float value)
+	{
+		gravity = value;
+		return;
+	}
+
+
+
+
+	/*
+	The METHOD BLOCK: GET:
+		Description: 
+			- Methods with the 'get' prefix fetch variables described above,
+			- due to the repetetive nature of these definitions, they have been clumped together. 
+		Preconditions:
+			- N/A.
+		Postconditions:
+			- Return relevant components (see each method's suffix).
+	*/
 	public String getMessage() {
 		messageFlag = false;
 		return message;
 	}
-	
-	
+	public int getBallSize()
+	{
+		// Returns the current ball size (casted as an integer), ending the function.
+		return (int) ball.getWidth();
+	}
+	// Honorary 'get' methods, with 'has..., was...' boolean naming syntax.
 	public boolean hasMessage() {
 		return messageFlag;
 	}
+	public boolean cannonWasHit() {
+		return cannonHit;
+	}
+	public boolean ballWasHit() {
+		return ballHit;
+	}
+
 
 
 	/*
@@ -1574,104 +2006,138 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	}
 	
 	
-	public boolean cannonWasHit() {
-		return cannonHit;
-	}
 	
+
 	
-	public boolean ballWasHit() {
-		return ballHit;
-	}
-	
-	public void setProjectileVel(float vel) {
-		projectileVel = vel;
-	}
-	
+	/*
+	The updateProjectile() method:
+		Description: 
+			- Applies velocity direction(s) onto <projectile>, checking for any potential collisions along the way.
+		Preconditions:
+			- the constructor (Ball()) has already been ran.
+		Postconditions:
+			- Updates <projectile>'s position within Ball(),
+			  + also conditionally changes <velocity>, depending on potential collisions,
+			  + conditionally resets the game, depending on collisions. 
+	*/
 	public void updateProjectile() {
-		if (queuedShot) {
+		
+		// Determines whether or not a new projectile should be spawned before iteration.
+		if (queuedShot){
+			tryFireCannon();	
 			queuedShot = false;
-			tryFireCannon();
 		}
-		if (projectile != null) {
-			
+		
+		// Executes only if a projectile currently exists.
+		if (projectile != null)
+		{
 			// Set the new velocity of the projectile
 			projectile.setVelocityY(projectile.getVelocityY() + gravity);
 			
 			// The screenBounds layer is reused for the projectile
 			screenBounds.updatePhysics();
 			
-			if (!(canHitCannon || cannonHitBox.intersects(projectile))) {
+			PhysicsObject horizontalCollision = projectile.getLastHorCollision();
+			PhysicsObject verticalCollision   = projectile.getLastVerCollision();
+			
+			
+			
+		
+			// Checks if the projectile is out of bounds
+			if (projectile.getY() > screenHeight 			  		  ||
+				projectile.getX() + projectile.getWidth() < 0 		  ||
+				projectile.getX() > screenWidth) {
+				// Destroys it, if so.
+				destroyProjectile();
+				setMessage("The cannon ball is not coming back...");
+			
+			}
+			// Otherwise, tells the player that the ball is still within X bounds (just not Y).
+			else if (projectile.getY() + projectile.getHeight() < 0) {
+				
+				if (!comingBack)
+				{
+					float endXValue = (float)(projectile.getX() + Math.sqrt((projectile.getHeight() -projectile.getY() - projectile.getVelocityY()) / gravity) * projectile.getVelocityX());
+					// Check if coming back
+					if (endXValue + projectile.getWidth() > 0 && endXValue < screenWidth - 1) {
+						comingBack = true;
+						setMessage("The cannon ball is in the air!");
+					} 
+					// Otherwise, destroys the projectile (like above).
+					else {
+						destroyProjectile();
+						setMessage("The cannon ball is not coming back...");
+					}
+				}
+			} else comingBack = false;
+			
+			
+			
+			// Resets whether or not the cannonball can hit the cannon once it exits the cannon's inital hitbox.
+			if (!(canHitCannon || cannonHitBox.intersects(projectile)))
+			{
 				canHitCannon = true;
 				screenBounds.addTouchingLayer(cannonLayer);
 			}
 			
-			if (projectile.getLastHorCollision() != null) {
-				if (projectile.getLastHorCollision() == ball) {
+			// Checks to see if a horiziontal collision occured. 
+			if (horizontalCollision != null)
+			{
+				// If it was the ball, reacts accordingly.
+				if (horizontalCollision == ball)
+				{
 					ballHit = true;
 					destroyProjectile();
-				} else if (projectile.getLastHorCollision() == cannonHitBox) {
+				}
+				// If it was the cannon, reacts accordingly.
+				else if (horizontalCollision == cannonHitBox)
+				{
 					cannonHit = true;
 					destroyProjectile();
-				} else {
+				}
+				// Otherwise, checks to see what exactly the cannon hit. If it was a rectangle, that rectangle (and the cannon ball) are deleted.
+				else
+				{
 					int i = rects.indexOf(projectile.getLastHorCollision());
-					if (i != -1) {
+					if (i != -1)
+					{
 						boxLayer.removePhysicsObject(rects.elementAt(i));
 						rects.remove(i);
 						destroyProjectile();
 					}
 				}
-			} else if (projectile.getLastVerCollision() != null) {
-				if (projectile.getLastVerCollision() == ball) {
+			} 
+			// Repeats the checks made above, but for Y components. 
+			else if (verticalCollision != null)
+			{
+				if (verticalCollision == ball)
+				{
 					ballHit = true;
 					destroyProjectile();
-				} else if (projectile.getLastVerCollision() == cannonHitBox) {
+				}
+				else if (verticalCollision == cannonHitBox)
+				{
 					cannonHit = true;
 					destroyProjectile();
-				} else {
+				}
+				else
+				{
 					int i = rects.indexOf(projectile.getLastVerCollision());
-					if (i != -1) {
+					if (i != -1)
+					{
 						boxLayer.removePhysicsObject(rects.elementAt(i));
 						rects.remove(i);
 						destroyProjectile();
 					}
 				}
-			}
-			
-			// Ensures that the projectile was not destroyed due to a collision
-			if (projectile != null) {
-				
-				// Checks if the projectile is out of bounds
-				if (projectile.getY() > screenHeight 			  		  ||
-					projectile.getX() + projectile.getWidth() < 0 		  ||
-					projectile.getX() > screenWidth) {
-					
-					destroyProjectile();
-					setMessage("It's not coming back");
-					
-				} else if (projectile.getY() + projectile.getHeight() < 0) {
-					
-					if (!comingBack) {
-						float temp = -projectile.getVelocityY() / gravity;
-						temp = (float)(projectile.getX() + (Math.sqrt((projectile.getHeight() - projectile.getY()) / gravity) - temp) * projectile.getVelocityX());
-						// Check if coming back
-						if (temp + projectile.getWidth() > 0 && temp < screenWidth - 1) {
-							comingBack = true;
-							setMessage("It's coming back!");
-						} else {
-							destroyProjectile();
-							setMessage("It's not coming back");
-						}
-					}
-				} else {
-					comingBack = false;
-				}
-			}
+			}	
 		}
+		return;
 	}
 
 
 	/*
-	The updatePhysics() method:
+	The updateBall() method:
 		Description: 
 			- Applies velocity direction(s) onto <ball>, checking for any potential collisions along the way.
 		Preconditions:
@@ -1682,7 +2148,10 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	*/
 	public void updateBall()
 	{
+		// Updates the ball layer's physics.
 		ballLayer.updatePhysics();
+		
+		// Handles the resulting collisions accordingly. 
 		if (ball.getLastHorCollision() != null) {
 			ball.setVelocityX(-(int)ball.getVelocityX());
 			
@@ -1704,6 +2173,15 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		return;
 	}
 	
+	/*
+	The updateBall() method:
+		Description: 
+			- Degrades the current projectile object into a nullpointer, if able.
+		Preconditions:
+			- N/A.
+		Postconditions:
+			- Degrades the current projectile object into a nullpointer, if able.
+	*/
 	private void destroyProjectile() {
 		if (projectile != null) {
 			screenBounds.removePhysicsObject(projectile);
@@ -1770,8 +2248,20 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	}
 	
 	
+	/*
+	The tryFireCannon() method:
+		Description: 
+			- Attempts to spawn a new instance of the projectile physics object
+		Preconditions:
+			N/A.
+		Postconditions:
+			- Spawns a new instance of the projectile physics object (cannon ball), if able.
+	*/
 	private void tryFireCannon() {
-		if (projectile == null) {
+		// Only continues if a projectile doesn't exist.
+		if (projectile == null)
+		{
+			// Creates a new projectile instance, and injects it with relevant default values.
 			projectile = new PhysicsObject(false);
 			projectile.setLocationX((float)cannonEndPos.getX() - CANNON_WIDTH / 2);
 			projectile.setLocationY((float)cannonEndPos.getY() - CANNON_WIDTH / 2);
@@ -1779,21 +2269,20 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			projectile.setHeight(CANNON_WIDTH);
 			projectile.setVelocityX(projectileVel * (float)Math.cos(cannonAngle * Math.PI / 180f));
 			projectile.setVelocityY(projectileVel * -(float)Math.sin(cannonAngle * Math.PI / 180f));
+			
+			// Appends the finished projectile to a physics layer.
 			screenBounds.addPhysicsObject(projectile);
+			
+			// Resets whether or not the cannonball can hit the cannon, if it can. 
 			if (canHitCannon) {
 				canHitCannon = false;
 				screenBounds.removeTouchingLayer(cannonLayer);
 			}
+			// Clears the message buffer with a blank string.
 			setMessage("");
 		}
 	}
 	
-	
-	private void setMessage(String message) {
-		messageFlag = true;
-		this.message = message;
-	}
-
 
 	/*
 	The tryUpdateSize() method:
@@ -1847,7 +2336,15 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		return value;
 	}
 
-
+	/*
+	The sizeRule() method:
+		Description: 
+			- Associates string values with numeric sizes.
+		Preconditions:
+			- String <key> - must be a valid string value. 
+		Postconditions:
+			- Returns the relevant integer value for any given CheckboxMenuItem relating to size.
+	*/
 	public int sizeRule(String key)
 	{
 		int value = -1;
@@ -1873,6 +2370,16 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	};
 
 
+
+	/*
+	The gravRule() method:
+		Description: 
+			- Associates string values with numeric gravities.
+		Preconditions:
+			- String <key> - must be a valid string value. 
+		Postconditions:
+			- Returns the relevant integer value for any given CheckboxMenuItem relating to environment.
+	*/
 	public float gravRule(String key)
 	{
 		float value = -1;
@@ -1911,28 +2418,6 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		}
 		return value;
 	};
-
-	public void setGrav(float value)
-	{
-		gravity = value;
-		return;
-	}
-
-
-	/*
-	The tryUpdateSize() method:
-		Description: 
-			- Returns <ball>'s current size.
-		Preconditions:
-			- the constructor (Ball()) has already been ran.
-		Postconditions:
-			- Returns <ball>'s current size.
-	*/
-	public int getBallSize()
-	{
-		// Returns the current ball size (casted as an integer), ending the function.
-		return (int) ball.getWidth();
-	}
 
 
 	/*
@@ -2040,11 +2525,13 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 		g.setColor(Color.black);
 		g.drawOval((int) ball.getX(), (int) ball.getY(), (int) ball.getWidth(), (int) ball.getHeight());
 		
+		// Draws the projectile onto the screen.
 		if (projectile != null) {
 			g.setColor(Color.black);
 			g.fillOval((int) projectile.getX(), (int) projectile.getY(), (int) projectile.getWidth(), (int) projectile.getHeight());
 		}
 		
+		// Draws the cannon (and it's pivot) onto the screen.
 		g.setColor(Color.blue);
 		g.fillPolygon(cannon);
 		
@@ -2079,20 +2566,35 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	@Override
 	public void mouseClicked(MouseEvent e)
 	{
-		if (mouseActive) {
-			if (cannon.contains(m1)) {
-				queuedShot = true;
-				clickedOnce = false;
-			} else {
-				if (clickedOnce) {
+		// Checks to see if the left mouse button has been pressed,
+		// - the function returns with no changes if this check comes up <false>.
+		if (e.getButton() == MouseEvent.BUTTON1)
+		{
+			// Checks to see if the mouse is active, next.
+			if (mouseActive)
+			{
+				// If so, checks to see if the cannon was clicked,
+				if (cannon.contains(m1))
+				{
+					// If so, a shot is queued for validation.
+					if(!programPaused)
+						queuedShot = true;
 					clickedOnce = false;
-					tryRemoveRect(m1);
-				} else {
-					clickedOnce = true;
+				}
+				else
+				{
+					// Otherwise, the <clickedOnce> boolean is set or reset,
+					// - if reset, tryRemoveRect() is called.
+					if (clickedOnce)
+					{
+						clickedOnce = false;
+						tryRemoveRect(m1);
+					} else
+						clickedOnce = true;
 				}
 			}
 		}
-
+		// Resets the x position of the current mouse click.
 		m1.x = -1;
 		
 		// Returns, ending the function.
@@ -2110,9 +2612,19 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			- Updates the current <m1> position.
 	*/
 	@Override
-	public void mousePressed(MouseEvent e) {
-		if (mouseActive)
-			m1 = e.getPoint();
+	public void mousePressed(MouseEvent e)
+	{
+		// Checks to see if the left mouse button has been pressed,
+		// - the function returns with no changes if this check comes up <false>.
+		if (e.getButton() == MouseEvent.BUTTON1)
+		{
+			if (mouseActive)
+			{
+				m1 = e.getPoint();
+				notMouseOne = false;
+			}
+		} else notMouseOne = true;
+			
 		
 		// Returns, ending the function.
 		return;
@@ -2129,9 +2641,15 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 			- Calls tryAddRect() whenever <mouseActive> is true, alongside associated variable cleanup. 
 	*/
 	@Override
-	public void mouseReleased(MouseEvent e) {
-		if (mouseActive && m2.x > -1)
-			tryAddRect();
+	public void mouseReleased(MouseEvent e)
+	{
+
+		// Checks to see if the left mouse button has been pressed,
+		// - the function returns with no changes if this check comes up <false>.
+		if (e.getButton() == MouseEvent.BUTTON1)
+			// Tries to add a rectangle, but only if the 'box' created by m1 and m2 meets basic rectangle criteria. 
+			if (mouseActive && m2.x > -1 && (m1.x - m2.x > 1 || m2.x - m1.x > 1) && ( m1.y - m2.y > 1 || m2.y - m1.y > 1))
+				tryAddRect();
 		
 		dragBoxActive = false;
 		m2.x = -1;
@@ -2192,14 +2710,16 @@ class Ball extends Canvas implements MouseListener, MouseMotionListener {
 	@Override
 	public void mouseDragged(MouseEvent e)
 	{
-		m2 = e.getPoint();
-		setDragBox(Math.min(m1.x, m2.x), Math.min(m1.y, m2.y), Math.abs(m1.x - m2.x), Math.abs(m1.y - m2.y));
-		
+		if(!notMouseOne)
+		{
+			m2 = e.getPoint();
+			setDragBox(Math.min(m1.x, m2.x), Math.min(m1.y, m2.y), Math.abs(m1.x - m2.x), Math.abs(m1.y - m2.y));
+		}
 		// Returns, ending the function.
 		return;
 	}
 
-	// Overwrites, but does not define mouseMoved() (unimplemented).
+	// Overwrites, but does not (meaningfully) define mouseMoved(). Resets <mouseMoved> when called.
 	@Override
 	public void mouseMoved(MouseEvent e) {
 		clickedOnce = false;
