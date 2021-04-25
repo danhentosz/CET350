@@ -31,6 +31,13 @@ import java.io.*;
 import java.lang.Thread;
 import java.util.Vector;
 
+import com.sun.corba.se.spi.activation.Server;
+
+import java.net.Socket;
+import java.net.ServerSocket;
+import java.net.InetSocketAddress;
+import java.net.SocketTimeoutException;
+
 /*
 The Chat() Class:
 	Description:
@@ -111,15 +118,27 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	// - this variable is FINAL, and cannot be changed.
 	static final long serialVersionUID = 10L;
 	
+	private final int DEFAULT_PORT = 44004;
+	
 	// Defines two Panel() objects, which serve as sub-containers for components under Frame().
 	private Panel control_panel; // - holds control components,
 	private Panel ball_panel;    // - holds Ball().
+	
+	private BufferedReader reader;
+	
+	private PrintWriter writer;
+	
+	private ServerSocket server;
+	private Socket client;
 	
 	// Defines mutable versions of the frame <width>, <height>, and <center>.
 	private int winWidth = 640;
 	private int winHeight = 500;
 	private int oldWinWidth;
 	private int oldWinHeight;
+	
+	private int port = DEFAULT_PORT;
+	private int timeout = 1000;
 	
 	// Defines the main Frame() object.
 	private Frame ChatFrame;
@@ -128,6 +147,9 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	private boolean isRunning = true; // controls whether or not GUIChat()'s thread iterates,
 	private boolean isServer  = false;
 	private boolean isClient  = false;
+	private boolean auto_flush = false;
+	
+	private String host = null;
 
 	// Defines <thread>, which is used to run continuous code after this class is instantiated. 
 	private Thread thread;
@@ -371,6 +393,74 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	}
 	
 	
+	private void displayMessage(String msg)
+	{
+		if (isServer)
+		{
+			statusArea.append("Server: ");
+		}
+		else if (isClient)
+		{
+			statusArea.append("Client: ");
+		}
+		statusArea.append(msg + "\n");
+		chatArea.requestFocus();
+	}
+	
+	
+	private void close()
+	{
+		// Still need to reset the buttons and textfield
+		
+		try
+		{
+			if (server != null)
+			{
+				if (writer != null)
+				{
+					writer.print("");
+					writer.close();
+				}
+				if (reader != null)
+				{
+					reader.close();
+				}
+				server.close();
+				server = null;
+			}
+		}
+		catch (IOException e) {}
+		
+		try
+		{
+			if (client != null)
+			{
+				if (writer != null)
+				{
+					writer.print("");
+					writer.close();
+				}
+				if (reader != null)
+				{
+					reader.close();
+				}
+				client.close();
+				client = null;
+			}
+		}
+		catch (IOException e) {}
+		
+		if (thread != null)
+		{
+			thread.setPriority(Thread.MIN_PRIORITY);
+			thread = null;
+		}
+		
+		isClient = false;
+		isServer = false;
+	}
+	
+	
 
 	/*
 	The stop() method:
@@ -411,6 +501,9 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	*/
 	@Override
 	public void run() {
+		
+		thread.setPriority(Thread.MAX_PRIORITY);
+		
 		// Iterates so long as <isRunning> is true.
 		while (isRunning) {
 			// Lets the thread sleep for one tick, allowing for interupts.
@@ -498,7 +591,145 @@ The itemStateChanged() method:
 	{
 		// Stores the source of the event via getSource().
 		Object source = e.getSource();
-
+		
+		if (source == chatField)
+		{
+			String data = chatField.getText();
+			chatArea.append("out: " + data + "\n");
+			writer.println(data);
+			chatField.setText("");
+		}
+		else if (source == hostStart)
+		{
+			try
+			{
+				hostStart.setEnabled(false);
+				if (server != null)
+				{
+					server.close();
+					server = null;
+				}
+				displayMessage("The server was closed");
+				server = new ServerSocket(port);
+				displayMessage("Opened server through port: " + port);
+				server.setSoTimeout(10 * timeout);
+				if (client != null)
+				{
+					client.close();
+					client = null;
+				}
+				try
+				{
+					displayMessage("Listening for a client");
+					client = server.accept();
+					ChatFrame.setTitle("Server");
+					displayMessage("connection from: " + client.getInetAddress());
+					try
+					{
+						reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+						writer = new PrintWriter(client.getOutputStream(), auto_flush);
+						isRunning = true;
+						start();
+					}
+					catch (IOException er)
+					{
+						displayMessage("Error while instantiating a reader/writer");
+						close();
+					}
+				}
+				catch (SocketTimeoutException er)
+				{
+					displayMessage("The server timed out");
+					close();
+				}
+			}
+			catch (IOException er)
+			{
+				displayMessage("Error while closing server");
+				close();
+			}
+		}
+		else if (source == portStart)
+		{
+			try
+			{
+				if (client != null)
+				{
+					client.close();
+					client = null;
+					displayMessage("Disconnected");
+				}
+				client = new Socket();
+				client.setSoTimeout(timeout);
+				try
+				{
+					displayMessage("Trying to connect");
+					client.connect(new InetSocketAddress(host, port));
+					ChatFrame.setTitle("Client");
+					displayMessage("A connection has been made to " + host + " through port " + port);
+					try
+					{
+						reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+						writer = new PrintWriter(client.getOutputStream(), auto_flush);
+						isClient = true;
+						isRunning = true;
+						start();
+					}
+					catch (IOException er)
+					{
+						displayMessage("Error while instantiating a reader/writer");
+						close();
+					}
+				}
+				catch (SocketTimeoutException er)
+				{
+					displayMessage("The connection timed out");
+					close();
+				}
+				
+			}
+			catch (IOException er)
+			{
+				displayMessage("Error while closing client");
+				close();
+			}
+		}
+		else if (source == disconnect)
+		{
+			displayMessage("Closing connection");
+			writer.println("");
+			thread.interrupt();
+			close();
+		}
+		else if (source == hostField || source == hostChange)
+		{
+			if (hostField.getText() != null)
+			{
+				host = hostField.getText();
+				portStart.setEnabled(true);
+			}
+		}
+		else if (source == portField || source == portChange)
+		{
+			if (portField.getText() != null)
+			{
+				try
+				{
+					port = Integer.valueOf(portField.getText());
+					if (host != null)
+					{
+						portStart.setEnabled(true);
+					}
+				}
+				catch (NumberFormatException er)
+				{
+					displayMessage("Error the port must be an integer!");
+				}
+			}
+		}
+		
+		chatField.requestFocus();
+		
 		// Returns, ending the function.
 		return;
 	}
@@ -549,15 +780,81 @@ The itemStateChanged() method:
 		// Returns, ending the function.
 		return;
 	}
+	
+	/*
+	
+	*/
+	@Override
+	public void windowOpened(WindowEvent e)
+	{
+		chatField.requestFocus();
+		
+		// Returns, ending the function.
+		return;
+	}
+	
+	/*
+	
+	*/
+	@Override
+	public void windowClosed(WindowEvent e)
+	{
+		chatField.requestFocus();
+		
+		// Returns, ending the function.
+		return;
+	}
+	
+	/*
+	
+	*/
+	@Override
+	public void windowIconified(WindowEvent e)
+	{
+		chatField.requestFocus();
+		
+		// Returns, ending the function.
+		return;
+	}
+	
+	/*
+	
+	*/
+	@Override
+	public void windowDeiconified(WindowEvent e)
+	{
+		chatField.requestFocus();
+		
+		// Returns, ending the function.
+		return;
+	}
+	
+	/*
+	
+	*/
+	@Override
+	public void windowActivated(WindowEvent e)
+	{
+		chatField.requestFocus();
+		
+		// Returns, ending the function.
+		return;
+	}
+	
+	/*
+	
+	*/
+	@Override
+	public void windowDeactivated(WindowEvent e)
+	{
+		chatField.requestFocus();
+		
+		// Returns, ending the function.
+		return;
+	}
 
 	// Below are overwritten (but unimplemented) methods of this class's implemented listeners.
 	public void componentMoved(ComponentEvent e)  {return;}
 	public void componentShown(ComponentEvent e)  {return;}
 	public void componentHidden(ComponentEvent e) {return;}
-	public void windowOpened(WindowEvent e)       {return;}
-	public void windowClosed(WindowEvent e)       {return;}
-	public void windowIconified(WindowEvent e)    {return;}
-	public void windowDeiconified(WindowEvent e)  {return;}
-	public void windowActivated(WindowEvent e)    {return;}
-	public void windowDeactivated(WindowEvent e)  {return;}
 }
