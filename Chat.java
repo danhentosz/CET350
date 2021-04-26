@@ -30,9 +30,6 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.lang.Thread;
 import java.util.Vector;
-
-import com.sun.corba.se.spi.activation.Server;
-
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.InetSocketAddress;
@@ -138,7 +135,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	private int oldWinHeight;
 	
 	private int port = DEFAULT_PORT;
-	private int timeout = 1000;
+	private int timeout = 2000;
 	
 	// Defines the main Frame() object.
 	private Frame ChatFrame;
@@ -178,7 +175,6 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	private Button portChange;
 	private Button portStart;
 
-
 	private Button disconnect;
 	
 	private TextArea statusArea;
@@ -213,9 +209,6 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		
 		// Calls makeSheet() to determine some component/screen sizes.
 		makeSheet();
-		
-		// Exits the constructor, and finishes initalization with the start() method.
-		start();
 	}
 
 
@@ -229,6 +222,12 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 			- Starts the main loop (see run() for details).
 	*/
 	private void start() {
+		disconnect.setEnabled(true);
+		chatField.setEnabled(true);
+		chatSend.setEnabled(true);
+		hostStart.setEnabled(true);
+		portStart.setEnabled(true);
+		
 		if (thread == null) {
 			thread = new Thread(this);
 			thread.start();
@@ -357,7 +356,18 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		// Makes both Panel() instances visible.
 		control_panel.setVisible(true);
 		ball_panel.setVisible(true);
-
+		
+		chatField.addActionListener(this);
+		hostField.addActionListener(this);
+		chatSend.addActionListener(this);
+		hostChange.addActionListener(this);
+		hostStart.addActionListener(this);
+		portField.addActionListener(this);
+		portChange.addActionListener(this);
+		portStart.addActionListener(this);
+		disconnect.addActionListener(this);
+		
+		setInitialButtonStates();
 
 		// Calls the inherited function validate(), which reduces the available space within Frame().
 		ChatFrame.validate();
@@ -410,7 +420,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	
 	private void close()
 	{
-		// Still need to reset the buttons and textfield
+		setInitialButtonStates();
 		
 		try
 		{
@@ -456,8 +466,11 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 			thread = null;
 		}
 		
+		ChatFrame.setTitle("");
+		
 		isClient = false;
 		isServer = false;
+		isRunning = false;
 	}
 	
 	
@@ -489,6 +502,19 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	}
 	
 	
+	private void setInitialButtonStates()
+	{
+		disconnect.setEnabled(false);
+		portStart.setEnabled(false);
+		portChange.setEnabled(true);
+		hostChange.setEnabled(true);
+		hostStart.setEnabled(true);
+		chatSend.setEnabled(false);
+		chatField.setEnabled(false);
+		// There may be other buttons that still should be initially disabled here
+	}
+	
+	
 
 	/*
 	The run() method:
@@ -504,35 +530,27 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		
 		thread.setPriority(Thread.MAX_PRIORITY);
 		
-		// Iterates so long as <isRunning> is true.
-		while (isRunning) {
-			// Lets the thread sleep for one tick, allowing for interupts.
-			try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			
-			// Updates the game's elements whenever <isPaused> is false.
-			while (isServer)
-			{
-				
-			}
-			
+		String data = new String();
 
-			// Updates the game's elements whenever <isPaused> is false.
-			while (isClient)
+		while (isRunning)
+		{
+			try 
 			{
-				
+				data = reader.readLine();
+				// Checks if the host disconnected
+				if (data == null)
+				{
+					displayMessage("Connection lost");
+					close();
+				}
+				else
+				{
+					chatArea.append("in: " + data + "\n");
+					data = new String();
+				}
 			}
-			
-			// Lets the thread sleep for one tick, allowing for interupts.
-			try {
-				Thread.sleep(1);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
+			catch (IOException er) {}
+		} 
 		
 		// Returns, ending the function.
 		return;
@@ -597,19 +615,22 @@ The itemStateChanged() method:
 			String data = chatField.getText();
 			chatArea.append("out: " + data + "\n");
 			writer.println(data);
+			writer.flush();
 			chatField.setText("");
 		}
+		// Checks if the user is trying to start the server
 		else if (source == hostStart)
 		{
 			try
 			{
 				hostStart.setEnabled(false);
+				portStart.setEnabled(false);
 				if (server != null)
 				{
 					server.close();
 					server = null;
+					displayMessage("The server was closed");
 				}
-				displayMessage("The server was closed");
 				server = new ServerSocket(port);
 				displayMessage("Opened server through port: " + port);
 				server.setSoTimeout(10 * timeout);
@@ -628,6 +649,7 @@ The itemStateChanged() method:
 					{
 						reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
 						writer = new PrintWriter(client.getOutputStream(), auto_flush);
+						isServer = true;
 						isRunning = true;
 						start();
 					}
@@ -649,15 +671,18 @@ The itemStateChanged() method:
 				close();
 			}
 		}
+		// Checks if the client is trying to connect to a server
 		else if (source == portStart)
 		{
 			try
 			{
+				portStart.setEnabled(false);
+				hostStart.setEnabled(false);
 				if (client != null)
 				{
 					client.close();
 					client = null;
-					displayMessage("Disconnected");
+					displayMessage("Removed old connection");
 				}
 				client = new Socket();
 				client.setSoTimeout(timeout);
@@ -686,6 +711,11 @@ The itemStateChanged() method:
 					displayMessage("The connection timed out");
 					close();
 				}
+				catch (IOException er)
+				{
+					displayMessage("Error connecting");
+					close();
+				}
 				
 			}
 			catch (IOException er)
@@ -708,6 +738,8 @@ The itemStateChanged() method:
 				host = hostField.getText();
 				portStart.setEnabled(true);
 			}
+			else
+				portStart.setEnabled(false);
 		}
 		else if (source == portField || source == portChange)
 		{
@@ -726,6 +758,8 @@ The itemStateChanged() method:
 					displayMessage("Error the port must be an integer!");
 				}
 			}
+			else
+				port = DEFAULT_PORT;
 		}
 		
 		chatField.requestFocus();
