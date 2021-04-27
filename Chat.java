@@ -7,7 +7,21 @@
 .Last Revised: April 27th, 2021.              (4/27/2021).
 .Written for Technical Computing Using Java (CET-350-R01).
 Description:
+A bundled server/client package that:
+ - can function as the server port and client port for a chat client,
+ - can send and recieve messages (as implied above),
+ - allows for dynamic disconnection and reconnection,
+ - informs the user of the current status of the program with a status area.
 
+The user is able to:
+ - change the host of the current chat application instance, (server)
+ - change the port of the current chat application instance, (client port)
+ - connect to another instance of the chat application,      (failure and success accounted for),
+ - disconnect from another instance of the chat application, (only available when connected already),
+ - send messages to another instance of the chat application,
+ - recieve messages from another instance of the chat application.
+ 
+for more implementation details, see GUIChat()'s class header.
 */
 
 
@@ -26,14 +40,9 @@ package Chat;
 import java.awt.*;
 
 import java.awt.event.*;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.lang.Thread;
-import java.util.Vector;
-import java.net.Socket;
-import java.net.ServerSocket;
-import java.net.InetSocketAddress;
-import java.net.SocketTimeoutException;
+import java.net.*;
 
 /*
 The Chat() Class:
@@ -82,102 +91,122 @@ public class Chat {
 /*
 The GUIChat() Class:
 	Description:*
-		- serves as a container window (Frame()) for an instance of Ball() (and several <...awt...> GUI components),
-		- allows interface with Ball() via several UI elements(),
-			+ Run,  Pause          - Menu/Hotkey (Toggles between running and pausing Ball()'s iterations),
-			+ Reset                - Menu        (Resets the position/state of all objects on Ball()'s canvas),
-			+ Quit                 - Menu        (Exits the program (functionality is the same as clicking the [x] at the upper right),
-			+ Speed Controls       - Menu        (Controls Ball()'s current iteraton speed; Extra Slow ... Extra Fast),
-			+ Size Controls        - Menu        (Controls Ball()'s "Ball" size; Extra Small ... Extra Large),
-			+ Environment Controls - Menu        (Sets the current force of gravity on Ball()'s main physics object),
-			+ Velocity Controls    - Scroll      (Sets the inital velocity of Ball()'s main physics object; higher = faster).
-			+ Angle Controls       - Scroll      (Sets the inital angle of Ball()'s main physics object; higher = higher).
-	    * - this class also hosts functionality from Ball(). See that class's header comment for more informatjon.
-	Implements:*
+		- serves as a container window (Frame()) for several <...awt...> GUI components),
+			+ Message Area,        - TextArea    (Holds current sent and recieved messages),
+			
+			+ Chat Field,          - TextField   (Sends messages whenever GUIChat() is currently connected),
+			+ Send,                - Button      (Acts like pressing ENTER/RETURN while selecting Chat Field),
+			
+			+ Host Field,          - TextField   (Sets the current host address for connecting to (or hosting) a server),
+			+ Change Host,         - Button      (Acts like pressing ENTER/RETURN while selecting Host Field),
+			* Start Server,        - Button      (Starts listening for a client connection (uses HOST)),
+			
+			+ Port Field,          - TextField   (Sets the current port # for sending a connection request),
+			+ Change Port,         - Button      (Acts like pressing ENTER/RETURN while selecting Port Field),
+			** Connect,            - Button      (Sends a request to any servers listening (uses HOST and PORT),
+			
+			+ Disconnect           - Button      (Disconnects any active ports. Enabled when a connection is active),
+			
+			+ Status Area,        - TextArea    (Holds currently sent status messages).
+			* Disables after being pressed once, enables after disconnecting.
+			**Enables after activating Host Field or Change Host, disables after disconnecting.
+
+	Implements:
 		- WindowListener()     - for window related events (open, close, etc...),
-		- ComponentListener()  - for certain java.awt... components (Button(), ScrollBar()),
-		- ActionListener()     - for action(s) taken by the user's computer's peripherals,
-		- AdjustmentListener() - for adjustment(s) to certain components (ScrollBar()),
-		- ItemListener()       - for user interaction with certain kinds of MenuItem() subclasses,
-		- Runnable()           - for the use of Thread() throughout instances of GUIChat(),
-		* - this class also hosts listeners from Ball(). See that class's header comment for more informatjon.
+		- ComponentListener()  - for resizing the screen (see componentResized()),
+		- ActionListener()     - for interactions regarding TextField() and Button() objects,
+		- Runnable()           - for the use of Thread() throughout instances of GUIChat().
 	Preconditions:
 		- N/A.
 	Postconditions:
 		- Constructor returns an instance of GUIChat(),
 			+ internal methods (makeSheet(), initComponents(), sizeScreen(), start()) are also ran.
-				- start() begins an internal loop, which can only be terminated by user input (clicking on "Quit" or [x]).
+				- after the program has been instantiated, it can only be terminated by user input (clicking on [x]).
 */
-class GUIChat implements ActionListener, WindowListener, ComponentListener, AdjustmentListener, ItemListener, Runnable
+class GUIChat implements ActionListener, WindowListener, ComponentListener, Runnable
 {
 	// Defines <serialVersionUID>, a universal identifier for this frame class's
 	// instances.
 	// - this variable is FINAL, and cannot be changed.
 	static final long serialVersionUID = 10L;
 	
+	// Defines a constant which equals the default port # used for connections.
 	private final int DEFAULT_PORT = 44004;
 	
-	// Defines two Panel() objects, which serve as sub-containers for components under Frame().
+	// Defines a Panel() object, which olds all of the User Input elements used by an instance of GUIChat().
 	private Panel control_panel; // - holds control components,
-	private Panel ball_panel;    // - holds Ball().
+
 	
+	// Defines <reader>, which is used for recieving messages from an active connection.
 	private BufferedReader reader;
 	
+	
+	// Defines <writer>, which is used for sending messages to an active connection.
 	private PrintWriter writer;
 	
+	// Defines <server>, which serves as the active listening connection of a GUIChat(),
+	// - active when in 'server/hosting' mode.
 	private ServerSocket server;
+	
+	// Defines <server>, which serves as the active sending connection of a GUIChat(),
+	// - active when in 'client/port' mode.
 	private Socket client;
 	
-	// Defines mutable versions of the frame <width>, <height>, and <center>.
+	// Defines the mutable height and width of the frame().
 	private int winWidth = 640;
 	private int winHeight = 500;
+	
+	// Defines dummy integers, which hold old values of the integers defined just above.
 	private int oldWinWidth;
 	private int oldWinHeight;
 	
+	// Defines an integer which holds the current port # (by default, DEFAULT_PORT).
 	private int port = DEFAULT_PORT;
+	
+	// Defines the static timeout value (2 seconds),
+	// - the raw value is used when connecting as a port,
+	// - the value times ten is used when listening as a server.
 	private int timeout = 2000;
 	
 	// Defines the main Frame() object.
 	private Frame ChatFrame;
 	
 	// Defines two control booleans, which are used as logic/loop controls later in the program.
-	private boolean isRunning = true; // controls whether or not GUIChat()'s thread iterates,
-	private boolean isServer  = false;
-	private boolean isClient  = false;
+	private boolean isRunning = true;  // controls whether or not GUIChat()'s thread iterates,
+	private boolean isServer  = false; // labels an instance of GUIChat() as a server,
+	private boolean isClient  = false; // labels an instance of GUIChat() as a client.
+	
+	// Used for disabling a builtin feature of datastream objects (see actionPerformed()).
 	private boolean auto_flush = false;
 	
+	// Holds the current host string used by both server and client modes.
 	private String host = null;
 
-	// Defines <thread>, which is used to run continuous code after this class is instantiated. 
+	// Defines <thread>, which is used to run continuous code after this class is instantiated*
+    // *
 	private Thread thread;
 
 	// Defines an instance of GridBagConstraints(), which is used in tandem with <control_panel>.
 	GridBagConstraints gbc;
 
-	
+	// Defines various GUI elements <...awt...>,
+	// - for implementation details, see the class header above.
 	private TextArea chatArea;
-	
 	private TextField chatField;
-	
 	private Button chatSend;
-	
-	
 	private TextField hostField;
 	private Label hostLabel;
-
 	private Button hostChange;
 	private Button hostStart;
-	
-	
 	private TextField portField;
 	private Label portLabel;
-
 	private Button portChange;
 	private Button portStart;
-
 	private Button disconnect;
-	
 	private TextArea statusArea;
+
+
+
 
 	/*
 	The GUIChat() constructor:
@@ -215,19 +244,25 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	/*
 	The start() method:
 		Description: 
-			- Starts the current thread, checking to see if it exists in the process (this prevents the thread from somehow being overwritten, if this method is ran twice.
+			- Starts the current thread, checking to see if it exists in the process (this prevents the thread from somehow being overwritten, if this method is ran twice without deletion.
 		Preconditions:
 			N/A.
 		Postconditions:
-			- Starts the main loop (see run() for details).
+			- Starts the main data-transfer loop (see run() for details).
 	*/
 	private void start() {
+		
+		// Sets various default button states (for when a thread is started).
 		disconnect.setEnabled(true);
 		chatField.setEnabled(true);
 		chatSend.setEnabled(true);
 		hostStart.setEnabled(true);
 		portStart.setEnabled(true);
 		
+		// Starts the main data-transfer loop.
+		isRunning = true;
+		
+		// Creates a new thread (if one has not been made already).
 		if (thread == null) {
 			thread = new Thread(this);
 			thread.start();
@@ -294,8 +329,6 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		
 		// - initalizes both of Frame()'s UI panels
 		control_panel = new Panel(gbl);
-		ball_panel    = new Panel();
-		ball_panel.setLayout(new BorderLayout(0, 0));
 		
 		// Sets some constraints which are shared by all elements of <control_panel>.
 		gbc.anchor = GridBagConstraints.CENTER;
@@ -355,8 +388,9 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 
 		// Makes both Panel() instances visible.
 		control_panel.setVisible(true);
-		ball_panel.setVisible(true);
 		
+		
+		// Adds relevant action listeners to objects defined above.
 		chatField.addActionListener(this);
 		hostField.addActionListener(this);
 		chatSend.addActionListener(this);
@@ -367,15 +401,18 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		portStart.addActionListener(this);
 		disconnect.addActionListener(this);
 		
+		// Sets the program's initial UI state.
 		setInitialButtonStates();
 
 		// Calls the inherited function validate(), which reduces the available space within Frame().
 		ChatFrame.validate();
 		
+		
+		displayMessage("[STA] Booted without errors.");
+		ChatFrame.setTitle("Network Chat: Currently Idling...");
 		// Returns, ending the function.
 		return;
 	}
-
 
 
 	/*
@@ -402,33 +439,62 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		return;
 	}
 	
-	
+	/*
+	The displayMessage() method:
+		Description: 
+			- A macro function that pushes a message to <statusArea>, which is visible to the end user.
+		Preconditions:
+			String <msg> - the string to be displayed. 
+		Postconditions:
+			- Appends a string (and a new line) to <statusArea>.
+	*/
 	private void displayMessage(String msg)
 	{
+		
+		// Appends signifiers for the status log, letting the user know what mode the chat was in.
 		if (isServer)
 		{
-			statusArea.append("Server: ");
+		statusArea.append("[SERVER] ");
 		}
 		else if (isClient)
 		{
-			statusArea.append("Client: ");
+			statusArea.append("[CLIENT] ");
 		}
+		// Appends the actual message, alongside a newline.
 		statusArea.append(msg + "\n");
-		chatArea.requestFocus();
+		
+		// Returns, ending the function.
+		return;
 	}
 	
 	
+	/*
+	The close() method:
+		Description: 
+			- Disposes of the program's main thread and Sockets, before returning control to the program's event handler.
+		Preconditions:
+			N/A (accounts for errors).
+		Postconditions:
+			- Disposes of the program's main thread and Sockets, before returning control to the program's event handler. 
+	*/
 	private void close()
 	{
+		// Changes GUIChat()'s Frame's title, to reflect a lack of a special status.
+		ChatFrame.setTitle("Network Chat: Currently Idling...");
+		
+		// Resets the UI before continuing.
 		setInitialButtonStates();
 		
+		
+		// Disposes of IO elements pertaining to a server socket,
+		// - this is wrapped in a try statement to prevent potential (but unlikely) IO errors.
 		try
 		{
+			
 			if (server != null)
 			{
 				if (writer != null)
 				{
-					writer.print("");
 					writer.close();
 				}
 				if (reader != null)
@@ -441,13 +507,15 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		}
 		catch (IOException e) {}
 		
+		
+		// Disposes of IO elements pertaining to a client socket,
+		// - this is wrapped in a try statement to prevent potential (but unlikely) IO errors.
 		try
 		{
 			if (client != null)
 			{
 				if (writer != null)
 				{
-					writer.print("");
 					writer.close();
 				}
 				if (reader != null)
@@ -460,17 +528,20 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		}
 		catch (IOException e) {}
 		
+		// Deletes the main thread.
 		if (thread != null)
 		{
 			thread.setPriority(Thread.MIN_PRIORITY);
 			thread = null;
 		}
 		
-		ChatFrame.setTitle("");
-		
+		// Cleans up various metadata booleans, which dictate the mode of GUIChat().
 		isClient = false;
 		isServer = false;
 		isRunning = false;
+		
+		// Returns, ending the function.
+		return;
 	}
 	
 	
@@ -478,7 +549,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	/*
 	The stop() method:
 		Description: 
-			- Serves as a destructor for GUIChat(), and a terminator for it's internal loop (see run()).
+			- Serves as a destructor for GUIChat().
 		Preconditions:
 			- the start() method must have had been ran already. 
 		Postconditions:
@@ -489,9 +560,23 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		// Terminates the active <thread>'s loop (see run() for details).
 		isRunning = false;
 
+
+		// Removes the UI's many action listeners. 
+		chatField.removeActionListener(this);
+		hostField.removeActionListener(this);
+		chatSend.removeActionListener(this);
+		hostChange.removeActionListener(this);
+		hostStart.removeActionListener(this);
+		portField.removeActionListener(this);
+		portChange.removeActionListener(this);
+		portStart.removeActionListener(this);
+		disconnect.removeActionListener(this);
+
+
 		// Finally, removes any listeners still attached to the Frame().
 		ChatFrame.removeComponentListener(this);
 		ChatFrame.removeWindowListener(this);
+		
 		
 		// Calls cleanup functions, before ending the function.
 		ChatFrame.dispose();
@@ -502,6 +587,18 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	}
 	
 	
+	
+	
+
+	/*
+	The setInitalButtonStates() method:
+		Description: 
+			- A macro that resets the GUI of GUIChat().
+		Preconditions:
+			- the initComponents() method must have had been ran already. 
+		Postconditions:
+			- Toggles various UI elements on and off to achieve the default states described in the class header.
+	*/
 	private void setInitialButtonStates()
 	{
 		disconnect.setEnabled(false);
@@ -511,7 +608,9 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 		hostStart.setEnabled(true);
 		chatSend.setEnabled(false);
 		chatField.setEnabled(false);
-		// There may be other buttons that still should be initially disabled here
+		
+		// returns, ending the function. 
+		return;
 	}
 	
 	
@@ -519,30 +618,48 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	/*
 	The run() method:
 		Description: 
-			- Iterates so long as <isRunning> is true, and calls <ball> depending on whether or not the program is currently paused.
+			- Iterates so long as <isRunning> is true, and waits for data to be recieved by GUIChat()'s currently paired socket.
 		Preconditions:
 			- the start() method must have had been ran already. 
 		Postconditions:
-			- The program is terminated alongside this function returning (see stop() for details).
+			- This thread is disposed by close() (see close()'s method header for details).
 	*/
 	@Override
-	public void run() {
+	public void run()
+	{
 		
+		// Changes this thread's priority, 
+		// - this is done so that there is minimal latency between messages being recieved.
 		thread.setPriority(Thread.MAX_PRIORITY);
 		
+		// Defines a temporary value, <data>,
+		// - holds information fed by <reader>. 
 		String data = new String();
 
+
+		// Runs so long as the connection between GUIChat()'s and it's paired Socket is maintained. 
 		while (isRunning)
 		{
+			
+			// The main data-recieving section,
+			// - this is wrapped in a try statement to prevent potential (but unlikely) IO errors.
 			try 
 			{
+				
+				// Reads data from <reader>
 				data = reader.readLine();
-				// Checks if the host disconnected
-				if (data == null)
+				
+				// Checks to see if the datastream has been broken.
+				if (data == null || data.equals(""))
 				{
-					displayMessage("Connection lost");
+					// If so, the thread enters a termination state (connection was lost),
+					// - the user is informed of this. 
+					displayMessage("[STA] Socket connection was lost.");
 					close();
 				}
+				
+				// Otherwise, the information read from <reader> must be a message,
+				// - said messages are appended directly to <chatArea>, for the user to see.
 				else
 				{
 					chatArea.append("in: " + data + "\n");
@@ -558,51 +675,14 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Adju
 	
 
 
-/*
-The itemStateChanged() method:
-	Description: 
-		- handles selections of any CheckboxMenuItem() instances.
-	Preconditions:
-		- the start() method must have had been ran already. 
-	Postconditions:
-		- Passes string values to various methods (see methods with the suffix 'rule'.
-*/
- @Override
- public void itemStateChanged(ItemEvent e)
- {
-	// Stores the currently selected checkbox in a dummy value.
-	CheckboxMenuItem dummy = (CheckboxMenuItem)e.getSource();
- }
-
-	/*
-	The adjustmentValueChanged() method:
-		Description: 
-			- Handles changes to either ScrollBar() instance within the Frame().
-		Preconditions:
-			- the start() method must have had been ran already. 
-		Postconditions:
-			- Alters relevant values within GUIChat(), or, Ball() (depending on the bar that was changed).
-	*/
-	@Override
-	public void adjustmentValueChanged(AdjustmentEvent e) {
-		
-		// Stores the current Scrollbar() being changed via getSource().
-		Scrollbar sb = (Scrollbar) e.getSource();
-
-		// Returns, ending the function.
-		return;
-	}
-
-
-
 	/*
 	The actionPerformed() method:
 		Description: 
-			- Handles interaction with any of the four MenuItem() instances held within <menuBar>.
+			- Handles interaction with any element of GUIChat()'s namesake, it's GUI.
 		Preconditions:
-			- the start() method must have had been ran already.
+			- the initComponents() method must have had been ran already.
 		Postconditions:
-			- Enables or Disables iteration of <ball>, resets <ball>, or otherwise terminates the program if quit was selected.
+			- Bestows functionality to each GUI component (for implementation details, see the class header).
 	*/
 	@Override
 	public void actionPerformed(ActionEvent e)
@@ -610,64 +690,112 @@ The itemStateChanged() method:
 		// Stores the source of the event via getSource().
 		Object source = e.getSource();
 		
-		if (source == chatField)
+		
+		// First, checks to see if the source was <chatField> or <chatSend>
+		if (source == chatField || source == chatSend)
 		{
+			// If so, the text currently entered into <chatField> is retrieved.
 			String data = chatField.getText();
-			chatArea.append("out: " + data + "\n");
-			writer.println(data);
-			writer.flush();
-			chatField.setText("");
+			
+			// That text is then compared against the default value, ""
+			if(data != "")
+			{
+				// Assuming something different was entered, the text is sent via <writer>,
+				// - the text is also displayed to <chatArea>, for the user to see.
+				chatArea.append("out: " + data + "\n");
+				writer.println(data);
+				writer.flush();
+				
+				// <chatField> is then reset.
+				chatField.setText("");
+				
+				
+				// Focuses on the chat field, if the user was typing in it already.
+				if (source == chatField)
+				{
+					chatField.requestFocus();
+				}
+			};
 		}
-		// Checks if the user is trying to start the server
+		
+		// Otherwise, checks to see if the user is trying to start a server.
 		else if (source == hostStart)
 		{
+			// 
 			try
 			{
+				
+				// Disables both <...Start> buttons, as a precaution.
 				hostStart.setEnabled(false);
 				portStart.setEnabled(false);
+
+		
+				// Checks to see if a server instance still exists,
+				// - ideally, close will have had cleaned this up already.
 				if (server != null)
 				{
+					// If one does exist, the current server is closed (and the user is informed).
 					server.close();
 					server = null;
-					displayMessage("The server was closed");
+					displayMessage("[STA] Current server socket closed.");
 				}
-				server = new ServerSocket(port);
-				displayMessage("Opened server through port: " + port);
-				server.setSoTimeout(10 * timeout);
+	
+				// Checks to see if a client instance still exists,
+				// - ideally, close will have had cleaned this up already.
 				if (client != null)
 				{
 					client.close();
 					client = null;
+					displayMessage("[STA] Current client socket closed.");
 				}
+
+				// Creates a new ServerSocket, using the port value currently entered by the user.
+				server = new ServerSocket(port);
+				displayMessage("[STA] New server socket opened through port: " + port + ".");
+				
+				// Sets a timeout timer for the server's listening (started through ...accept(), below).
+				server.setSoTimeout(10 * timeout);
+				
+
 				try
 				{
-					displayMessage("Listening for a client");
+					
+					// Listens for a connection (and informs the user that the program is doing so,
+					// - if this process takes too long, this try portion of the method will be interrupted.
+					displayMessage("[STA] Listening for a client...");
 					client = server.accept();
-					ChatFrame.setTitle("Server");
-					displayMessage("connection from: " + client.getInetAddress());
+					
+					// If a connection is made, the user is told where they connected from,
+					// - also, the GUIChat() frame update's it's title, to reflect the program's mode.
+					ChatFrame.setTitle("Network Chat: Running in Server Mode...");
+					displayMessage("[SERVER] [STA] Recieved connection from: " + client.getInetAddress()) + ".";
+					
+					// Tries to create IO objects (<reader> and <writer>),
+					
 					try
 					{
 						reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
 						writer = new PrintWriter(client.getOutputStream(), auto_flush);
+						
+						// Also sets a system boolean, and runs start(), to begin the main thread.
 						isServer = true;
-						isRunning = true;
 						start();
 					}
 					catch (IOException er)
 					{
-						displayMessage("Error while instantiating a reader/writer");
+						displayMessage("[ERR] Failed to instance I/O objects.");
 						close();
 					}
 				}
 				catch (SocketTimeoutException er)
 				{
-					displayMessage("The server timed out");
+					displayMessage("[ERR] Server socket's connection timed out.");
 					close();
 				}
 			}
 			catch (IOException er)
 			{
-				displayMessage("Error while closing server");
+				displayMessage("[ERR] Failed to close old sockets.");
 				close();
 			}
 		}
@@ -678,72 +806,85 @@ The itemStateChanged() method:
 			{
 				portStart.setEnabled(false);
 				hostStart.setEnabled(false);
+				
+				
+				// Checks to see if a client instance still exists,
+				// - ideally, close will have had cleaned this up already.
 				if (client != null)
 				{
 					client.close();
 					client = null;
-					displayMessage("Removed old connection");
+					displayMessage("[STA] Current client socket closed.");
 				}
+				
+				// Creates a new client socket.
 				client = new Socket();
 				client.setSoTimeout(timeout);
 				try
 				{
-					displayMessage("Trying to connect");
+					displayMessage("[STA] Sending a connection request on port " + port + ".");
 					client.connect(new InetSocketAddress(host, port));
-					ChatFrame.setTitle("Client");
-					displayMessage("A connection has been made to " + host + " through port " + port);
+					ChatFrame.setTitle("Network Chat: Running in Client Mode...");
+					displayMessage("[CLIENT] [STA] A connection has been made to " + host + " through port " + port);
 					try
 					{
 						reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
 						writer = new PrintWriter(client.getOutputStream(), auto_flush);
 						isClient = true;
-						isRunning = true;
 						start();
 					}
 					catch (IOException er)
 					{
-						displayMessage("Error while instantiating a reader/writer");
+						displayMessage("[ERR] Failed to instance I/O objects.");
 						close();
 					}
 				}
 				catch (SocketTimeoutException er)
 				{
-					displayMessage("The connection timed out");
+					displayMessage("[ERR] Client's socket connection timed out.");
 					close();
 				}
 				catch (IOException er)
 				{
-					displayMessage("Error connecting");
+					displayMessage("[ERR] Failed to send connection request.");
 					close();
 				}
 				
 			}
 			catch (IOException er)
 			{
-				displayMessage("Error while closing client");
+				displayMessage("[ERR] Failed to close old sockets.");
 				close();
 			}
 		}
 		else if (source == disconnect)
 		{
-			displayMessage("Closing connection");
+			// Informs the user that the program's current connections are being closed.
+			displayMessage("[STA] Closing current connections.");
+			
+			// Sends a formal disconnect value.
 			writer.println("");
+			
+			// Interupts the current data-handling thread.
 			thread.interrupt();
+			
+			// Calls close() to handle the actual closing.
 			close();
 		}
 		else if (source == hostField || source == hostChange)
 		{
-			if (hostField.getText() != null)
+			if (hostField.getText() != null && hostField.getText() != "")
 			{
 				host = hostField.getText();
 				portStart.setEnabled(true);
+				displayMessage("[STA] Host value successfully changed to: " + host);
 			}
 			else
 				portStart.setEnabled(false);
 		}
 		else if (source == portField || source == portChange)
 		{
-			if (portField.getText() != null)
+			if (portField.getText() != null && portField.getText() != "")
 			{
 				try
 				{
@@ -755,14 +896,12 @@ The itemStateChanged() method:
 				}
 				catch (NumberFormatException er)
 				{
-					displayMessage("Error the port must be an integer!");
+				displayMessage("[ERR] Invalid port value (must be an integer, default is: 44004).");
 				}
 			}
 			else
 				port = DEFAULT_PORT;
 		}
-		
-		chatField.requestFocus();
 		
 		// Returns, ending the function.
 		return;
