@@ -213,11 +213,11 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		Description: 
 			- calls several subfunctions to initalize a GUIChat() object. 
 		Preconditions:
-			N/A.
+			String <str_timeout> - contains a string (which can be convered into an integer). (overwrites default timeout value (miliseconds)).
 		Postconditions:
 			- Returns an initalized instance of GUIChat(), which will be running it's main loop (see start() and run() for details).
 	*/
-	public GUIChat(String connection)
+	public GUIChat(String str_timeout)
 	{
 		// Instantiates the main frame object.
 		ChatFrame = new Frame();
@@ -231,7 +231,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		// Initalizes this Frame()'s components*
 		// *this also sizes some components which require dimensions for initalization. See initComponents() for details.
 		try {
-			initComponents();
+			initComponents(str_timeout);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -278,8 +278,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		Preconditions:
 			- N/A.
 		Postconditions:
-			- Mutates some mutable values inside of GUIChat(), mostly through the use of Ball()*
-			* other components can be dynamically resized on their own, due to utilizing layout managers.
+			- Resizes the current window, and stores old Height/Width values.
 	*/
 	private void makeSheet()
 	{
@@ -307,8 +306,9 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		Postconditions:
 			- Populates all object-associated variables with their proper values, and adds them to implemented listeners of GUIChat().
 	*/
-	private void initComponents() throws Exception, IOException {
+	private void initComponents(String str_timeout) throws Exception, IOException {
 		
+
 		// Initalizes <gbl> and <gbc>, which are used together to constrain components within GUIChat().
 		GridBagLayout gbl = new GridBagLayout();
 		gbc               = new GridBagConstraints();
@@ -336,7 +336,11 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		gbc.weighty = 1;
 		gbc.fill = GridBagConstraints.BOTH;
 		
-
+		
+		
+		// Assigns names, colors, and positions to various GUI elements.
+		// Due to the repetetive nature of these codeblocks, they will mostly be left uncommented.
+		// - all UI elements are added to the control panel, save for the message field. 
 		chatField = new TextField();
 		chatSend  = new Button("Send");
 		addToControlPanel(chatSend, 20,1,1,1);
@@ -371,14 +375,15 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		statusArea.setEditable(false);
 		addToControlPanel(statusArea, 0,5,0,1);
 		
-		// Adds listeners (and either Panel()) to Frame().
+		
+		// Adds listeners (and the control Panel()) to Frame().
 		ChatFrame.addComponentListener(this);
 		ChatFrame.addWindowListener(this);
 		ChatFrame.setPreferredSize(new Dimension(winWidth, winHeight));
 		ChatFrame.setMinimumSize(ChatFrame.getPreferredSize());
-
 		ChatFrame.add(control_panel, BorderLayout.SOUTH);
 
+		// Adds the <chatArea> (messages) to the panel()'s center.
 		chatArea = new TextArea();
 		chatArea.setEditable(false);
 		ChatFrame.add(chatArea, BorderLayout.CENTER);
@@ -407,9 +412,29 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		// Calls the inherited function validate(), which reduces the available space within Frame().
 		ChatFrame.validate();
 		
-		
+		// Displays a boot message, and changes the frame()'s title. 
 		displayMessage("[STA] Booted without errors.");
+		
+		// Checks to see if the user entered a unique parameter for the timeout value.
+		if(str_timeout != ""){
+			try{
+				// tries to typecast (and store) that value, if so.
+				timeout = Integer.valueOf(str_timeout);
+			}
+			// If unable to be typecasted, the user is informed that their input was ignored.
+			catch (NumberFormatException er)
+			{
+				displayMessage("[STA] Timeout value ignored; \"" + str_timeout + "\" is not a valid value.");
+			}
+		}
+		// Displays the current timeout values in miliseconds and whole seconds.
+		displayMessage("[STA] Current client timeout value is: " + timeout + " milliseconds (" + (float)timeout/1000 + " seconds).");
+		displayMessage("[STA] Current server timeout value is: " + timeout * 10 + " milliseconds ("  + (float)timeout * 10 /1000 + " seconds).");
+		
+		// Changes GUIChat()'s Frame() to it's default.
 		ChatFrame.setTitle("Network Chat: Currently Idling...");
+		
+		
 		// Returns, ending the function.
 		return;
 	}
@@ -768,7 +793,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 					// If a connection is made, the user is told where they connected from,
 					// - also, the GUIChat() frame update's it's title, to reflect the program's mode.
 					ChatFrame.setTitle("Network Chat: Running in Server Mode...");
-					displayMessage("[SERVER] [STA] Recieved connection from: " + client.getInetAddress()) + ".";
+					displayMessage("[SERVER] [STA] Recieved connection from: " + client.getInetAddress() + ".");
 					
 					// Tries to create IO objects (<reader> and <writer>),
 					
@@ -888,10 +913,16 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 			{
 				try
 				{
-					port = Integer.valueOf(portField.getText());
-					if (host != null)
+					int temp = Integer.valueOf(portField.getText());
+					
+					if(!(temp >= 65535) && temp >= 1)
 					{
-						portStart.setEnabled(true);
+						port = Integer.valueOf(portField.getText());
+						if (host != null)
+						{
+							portStart.setEnabled(true);
+						}
+						displayMessage("[ERR] Invalid port value (outside of the valid range: 1 to 65535).");
 					}
 				}
 				catch (NumberFormatException er)
