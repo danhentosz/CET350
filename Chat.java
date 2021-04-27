@@ -65,13 +65,17 @@ public class Chat {
 		Description: 
 			- Opens a new instance of GUIChat(). 
 		Preconditions:
-			N/A: method ignores values in <args>[].
+			N/A: method ignores values past [0] in <args>[].
 		Postconditions:
 			- Creates a new instance of GUIChat, <gui>,
 				+ from here, implemented methods loop until the program is exited.
 	*/
 	public static void main(String[] args) {
+		// Defines <gui>, uninstantiated GUIChat() object.
 		GUIChat gui;
+		
+		// Applies a timeout value, if the user happened to enter it from the command line,
+		// Otherwise the program is initalized as normal.
 		if(args.length != 0)
 		{
 			if(args[0] != null)
@@ -82,6 +86,7 @@ public class Chat {
 		}
 		else gui = new GUIChat("");
 		
+		// Returns, ending the function.
 		return;
 	}
 }
@@ -408,6 +413,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		
 		// Sets the program's initial UI state.
 		setInitialButtonStates();
+		portStart.setEnabled(false);
 
 		// Calls the inherited function validate(), which reduces the available space within Frame().
 		ChatFrame.validate();
@@ -430,6 +436,10 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		// Displays the current timeout values in miliseconds and whole seconds.
 		displayMessage("[STA] Current client timeout value is: " + timeout + " milliseconds (" + (float)timeout/1000 + " seconds).");
 		displayMessage("[STA] Current server timeout value is: " + timeout * 10 + " milliseconds ("  + (float)timeout * 10 /1000 + " seconds).");
+		
+		// Informs the user what the currently selected port value is.
+		displayMessage("[STA] The current port value is 44004.");
+		portField.setText("44004");
 		
 		// Changes GUIChat()'s Frame() to it's default.
 		ChatFrame.setTitle("Network Chat: Currently Idling...");
@@ -627,7 +637,6 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 	private void setInitialButtonStates()
 	{
 		disconnect.setEnabled(false);
-		portStart.setEnabled(false);
 		portChange.setEnabled(true);
 		hostChange.setEnabled(true);
 		hostStart.setEnabled(true);
@@ -677,10 +686,12 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 				// Checks to see if the datastream has been broken.
 				if (data == null || data.equals(""))
 				{
+					
 					// If so, the thread enters a termination state (connection was lost),
 					// - the user is informed of this. 
 					displayMessage("[STA] Socket connection was lost.");
 					close();
+					portStart.setEnabled(true);
 				}
 				
 				// Otherwise, the information read from <reader> must be a message,
@@ -781,22 +792,25 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 				// Sets a timeout timer for the server's listening (started through ...accept(), below).
 				server.setSoTimeout(10 * timeout);
 				
-
+				
+				// Begins to actually listen for a connection.
+				// - this is wrapped in a try statement to prevent potential (but unlikely) IO errors,
+				// - whenever the socket times out without connecting, a catch statement also is called.
 				try
 				{
 					
 					// Listens for a connection (and informs the user that the program is doing so,
 					// - if this process takes too long, this try portion of the method will be interrupted.
+					// - also, the GUIChat() frame update's it's title, to reflect the program's mode.
+					ChatFrame.setTitle("Network Chat: Running in Server Mode...");
 					displayMessage("[STA] Listening for a client...");
 					client = server.accept();
 					
 					// If a connection is made, the user is told where they connected from,
-					// - also, the GUIChat() frame update's it's title, to reflect the program's mode.
-					ChatFrame.setTitle("Network Chat: Running in Server Mode...");
 					displayMessage("[SERVER] [STA] Recieved connection from: " + client.getInetAddress() + ".");
 					
 					// Tries to create IO objects (<reader> and <writer>),
-					
+					// - this is wrapped in a try statement to prevent potential (but unlikely) IO errors.
 					try
 					{
 						reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
@@ -806,21 +820,27 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 						isServer = true;
 						start();
 					}
+					// Catches IO errors.
 					catch (IOException er)
 					{
 						displayMessage("[ERR] Failed to instance I/O objects.");
+						portStart.setEnabled(true);
 						close();
 					}
 				}
+				// Informs the user of a server socket timeout.
 				catch (SocketTimeoutException er)
 				{
 					displayMessage("[ERR] Server socket's connection timed out.");
+					portStart.setEnabled(true);
 					close();
 				}
 			}
+			// Informs the user of errors regarding cleanup.
 			catch (IOException er)
 			{
 				displayMessage("[ERR] Failed to close old sockets.");
+				portStart.setEnabled(true);
 				close();
 			}
 		}
@@ -829,6 +849,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		{
 			try
 			{
+				// Disables both <...Start> buttons, as a precaution.
 				portStart.setEnabled(false);
 				hostStart.setEnabled(false);
 				
@@ -844,13 +865,27 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 				
 				// Creates a new client socket.
 				client = new Socket();
+				
+				// Sets the socket's current timeout value.
 				client.setSoTimeout(timeout);
+				
+				// Begins to actually listen for a recieving server,
+				// - this is wrapped in a try statement to prevent potential (but unlikely) IO errors,
+				// - in the event that the client socket times out, a catch statement also is called.
 				try
 				{
+					// Informs the user of the request being sent.
+					// - also changes GUIChat()'s Frame()'s title, to reflect the current chat mode.
 					displayMessage("[STA] Sending a connection request on port " + port + ".");
-					client.connect(new InetSocketAddress(host, port));
 					ChatFrame.setTitle("Network Chat: Running in Client Mode...");
+					client.connect(new InetSocketAddress(host, port));
+					
+					// Executes if the connection was successful, and lets the user know that is the case,
 					displayMessage("[CLIENT] [STA] A connection has been made to " + host + " through port " + port);
+					
+					
+					// Attempts to open new IO objects (and start the main data-processing thread),
+					// - this is wrapped in a try statement to prevent potential (but unlikely) IO errors.
 					try
 					{
 						reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
@@ -858,30 +893,39 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 						isClient = true;
 						start();
 					}
+					// Catches IO errors.
 					catch (IOException er)
 					{
 						displayMessage("[ERR] Failed to instance I/O objects.");
+						portStart.setEnabled(true);
 						close();
 					}
 				}
+				// Informs the user of a socket timeout.
 				catch (SocketTimeoutException er)
 				{
 					displayMessage("[ERR] Client's socket connection timed out.");
+					portStart.setEnabled(true);
 					close();
 				}
+				// Informs the user of errors encountered when trying to send the initial connection.
 				catch (IOException er)
 				{
 					displayMessage("[ERR] Failed to send connection request.");
+					portStart.setEnabled(true);
 					close();
 				}
 				
 			}
+			// Informs the user of failed socket deletions.
 			catch (IOException er)
 			{
 				displayMessage("[ERR] Failed to close old sockets.");
+				portStart.setEnabled(true);
 				close();
 			}
 		}
+		// Checks to see if the disconnect button was pressed.
 		else if (source == disconnect)
 		{
 			// Informs the user that the program's current connections are being closed.
@@ -895,11 +939,17 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 			
 			// Calls close() to handle the actual closing.
 			close();
+			
+			// Re-enables the connect button, whenever a disconnect occurs.
+			portStart.setEnabled(true);
 		}
+		// Otherwise, checks to see if the host field was entered.
 		else if (source == hostField || source == hostChange)
 		{
+			// If so, checks to see if the value inside is usable.
 			if (hostField.getText() != null && hostField.getText() != "")
 			{
+				// If so, that value becomes the new host value.
 				host = hostField.getText();
 				portStart.setEnabled(true);
 				displayMessage("[STA] Host value successfully changed to: " + host);
@@ -907,29 +957,43 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 			else
 				portStart.setEnabled(false);
 		}
+		
+		// Otherwise, checks to see if the port field was entered.
 		else if (source == portField || source == portChange)
 		{
+			// If so, checks to see if the value inside is usable.
 			if (portField.getText() != null && portField.getText() != "")
 			{
+				// If so, tries to typecast that value into an integer.
 				try
 				{
 					int temp = Integer.valueOf(portField.getText());
 					
+					// If the typecast is successful, a range is compared against the value,
+					// - this range represents valid port numbers.
 					if(!(temp >= 65535) && temp >= 1)
 					{
-						port = Integer.valueOf(portField.getText());
+						// If the port is valid, <port> inherits <temp>'s value.
+						port = temp;
+						
+						// if a host value is currently entered, a connection request can be made.
 						if (host != null)
 						{
 							portStart.setEnabled(true);
 						}
-						displayMessage("[ERR] Invalid port value (outside of the valid range: 1 to 65535).");
+						// Lets the user know that their value is now in use.
+						displayMessage("[STA] Port value successfully changed to: " + port + ".");
 					}
+					// Otherwise informs the user that their value was invalid.
+					else displayMessage("[ERR] Invalid port value (valid range includes: 1 to 65535).");
 				}
+				// Informs the user that their value was invalid.
 				catch (NumberFormatException er)
 				{
-				displayMessage("[ERR] Invalid port value (must be an integer, default is: 44004).");
+					displayMessage("[ERR] Invalid port value (valid range includes: 1 to 65535).");
 				}
 			}
+			// As a failsafe, sets <port> to the current default value.
 			else
 				port = DEFAULT_PORT;
 		}
@@ -948,7 +1012,7 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		Preconditions:
 			- the start() method must have had been ran already.
 		Postconditions:
-			- Calls MakeSheet(), which determines most of whether or not the screen can successfully be resized. 
+			- Resizes the screen, and stores the old values in dummy integers (also calls makeSheet()). 
 	*/
 	@Override
 	public void componentResized(ComponentEvent e) {
@@ -975,90 +1039,33 @@ class GUIChat implements ActionListener, WindowListener, ComponentListener, Runn
 		Preconditions:
 			- the start() method must have had been ran already.
 		Postconditions:
-			- Calls stop(), beginning the termination process. 
+			- Calls close() and stop(), beginning the termination process. 
 	*/
 	@Override
 	public void windowClosing(WindowEvent e) {
+		close();
 		stop();
 		
 		// Returns, ending the function.
 		return;
 	}
-	
-	/*
-	
-	*/
-	@Override
-	public void windowOpened(WindowEvent e)
-	{
-		chatField.requestFocus();
-		
-		// Returns, ending the function.
-		return;
-	}
-	
-	/*
-	
-	*/
-	@Override
-	public void windowClosed(WindowEvent e)
-	{
-		chatField.requestFocus();
-		
-		// Returns, ending the function.
-		return;
-	}
-	
-	/*
-	
-	*/
-	@Override
-	public void windowIconified(WindowEvent e)
-	{
-		chatField.requestFocus();
-		
-		// Returns, ending the function.
-		return;
-	}
-	
-	/*
-	
-	*/
-	@Override
-	public void windowDeiconified(WindowEvent e)
-	{
-		chatField.requestFocus();
-		
-		// Returns, ending the function.
-		return;
-	}
-	
-	/*
-	
-	*/
-	@Override
-	public void windowActivated(WindowEvent e)
-	{
-		chatField.requestFocus();
-		
-		// Returns, ending the function.
-		return;
-	}
-	
-	/*
-	
-	*/
-	@Override
-	public void windowDeactivated(WindowEvent e)
-	{
-		chatField.requestFocus();
-		
-		// Returns, ending the function.
-		return;
-	}
+
 
 	// Below are overwritten (but unimplemented) methods of this class's implemented listeners.
-	public void componentMoved(ComponentEvent e)  {return;}
+	@Override
+	public void windowDeactivated(WindowEvent e)  {return;}
+	@Override
+	public void windowOpened(WindowEvent e)       {chatField.requestFocus(); return;}
+	@Override
+	public void windowClosed(WindowEvent e)       {chatField.requestFocus(); return;}
+	@Override
+	public void windowIconified(WindowEvent e)    {chatField.requestFocus(); return;}
+	@Override
+	public void windowDeiconified(WindowEvent e)  {chatField.requestFocus(); return;}
+	@Override
+	public void windowActivated(WindowEvent e)    {chatField.requestFocus(); return;}
+	@Override
+	public void componentMoved(ComponentEvent e)  {chatField.requestFocus(); return;}
 	public void componentShown(ComponentEvent e)  {return;}
 	public void componentHidden(ComponentEvent e) {return;}
 }
